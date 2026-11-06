@@ -7,7 +7,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
-import { completeTheSitemap, prepare, theHeadOfTheRecord, writeTheCard, writeTheRest } from './the-build.mjs';
+import { completeTheSitemap, prepare, theHeadOfTheRecord, writeTheCard, writeTheFontLicences, writeTheRest } from './the-build.mjs';
 import { recordBackLink } from './the-pages.mjs';
 import { productRoot } from './the-product.mjs';
 import { writeTheRecord } from './the-record.mjs';
@@ -37,3 +37,4 @@ await completeTheSitemap({ root, out });
 const card = await writeTheCard({ root, out });
 console.log(`wrote og.png, ${card.length} bytes`);
 await writeTheRest({ root, out });
+writeTheFontLicences({ out });

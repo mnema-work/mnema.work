@@ -25,11 +25,23 @@ export default defineConfig({
     starlight({
       title: 'mnema',
       favicon: '/favicon.svg',
-      logo: { dark: './src/assets/wordmark-dark.svg', light: './src/assets/wordmark-light.svg', alt: '', replacesTitle: true },
+      // The mark beside the name, which Starlight links to the root of the site: the home page.
+      logo: { dark: './src/assets/mark-dark.svg', light: './src/assets/mark-light.svg', alt: '' },
       social: [{ icon: 'github', label: 'GitHub', href: facts.repoUrl }],
       sidebar,
-      customCss: ['./src/generated/theme.css', './src/styles/site.css'],
-      components: { Footer: './src/components/Footer.astro', Hero: './src/components/Hero.astro' },
+      customCss: [
+        // Self-hosted, from the packages: no page asks another host for a font.
+        '@fontsource/jetbrains-mono/latin-400.css',
+        '@fontsource/jetbrains-mono/latin-500.css',
+        '@fontsource/jetbrains-mono/latin-700.css',
+        '@fontsource/jetbrains-mono/latin-800.css',
+        '@fontsource/instrument-sans/latin-400.css',
+        '@fontsource/instrument-sans/latin-500.css',
+        '@fontsource/instrument-sans/latin-600.css',
+        './src/generated/theme.css',
+        './src/styles/site.css',
+      ],
+      components: { Footer: './src/components/Footer.astro', ThemeProvider: './src/components/ThemeProvider.astro' },
       head: [
         // The adaptive SVG is the icon; the PNG is only for browsers that draw no SVG in a tab.
         { tag: 'link', attrs: { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml', sizes: 'any' } },

@@ -42,10 +42,10 @@ when('the built site', () => {
   const urlsOfSitemap = (): string[] =>
     [...readText(join(DIST, 'sitemap-0.xml')).matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => m[1] ?? '').sort();
 
-  it('lists in its sitemap the landing, /record/ and one page for each page of docs/, all under its own address', () => {
+  it('lists in its sitemap the home page, /docs/, /record/ and one page for each page of docs/, all under its own address', () => {
     const docs = tracked('docs/*.md').map((f) => f.slice(5, -3));
     expect(docs.length, 'the product holds pages of docs/').toBeGreaterThan(10);
-    const expected = [`${SITE_URL}/`, `${SITE_URL}/record/`, ...docs.map((name) => `${SITE_URL}/docs/${name}/`)].sort();
+    const expected = [`${SITE_URL}/`, `${SITE_URL}/docs/`, `${SITE_URL}/record/`, ...docs.map((name) => `${SITE_URL}/docs/${name}/`)].sort();
     expect(urlsOfSitemap()).toEqual(expected);
     for (const url of urlsOfSitemap()) {
       const path = url.slice(SITE_URL.length + 1);
@@ -104,7 +104,7 @@ when('the built site', () => {
       const html = readText(join(DIST, page));
       const icons = [...html.matchAll(/<link rel="icon"[^>]*>/g)].map((m) => m[0]);
       expect(icons[0], `${page}: the SVG is the first icon`).toMatch(/href="\/favicon\.svg"[^>]*type="image\/svg\+xml"|type="image\/svg\+xml"[^>]*href="\/favicon\.svg"/);
-      expect(html, page).toContain('<link rel="icon" href="/favicon.png" type="image/png" sizes="64x64"/>');
+      expect(html, page).toMatch(/<link rel="icon" href="\/favicon\.png" type="image\/png" sizes="64x64"\s*\/?>/);
     }
     for (const file of ['favicon.svg', 'favicon.png']) expect(readdirSync(DIST), file).toContain(file);
     expect(readFileSync(join(DIST, 'favicon.svg'), 'utf8')).toContain('prefers-color-scheme:dark');

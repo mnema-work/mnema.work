@@ -2,9 +2,6 @@
 
 The few words the site needs that no other page holds, one line each; the build reads them and a case holds them to twenty words.
 
-## verdict-caption
-What mnema verify prints on this repository's own record, at the commit this site was built from:
-
 ## not-found-title
 Page not found
 
@@ -19,3 +16,9 @@ The record of mnema, checked in your browser
 
 ## record-description
 Every decision of this repository's record with its reasons, and the verdict of its hash chain, computed in your browser.
+
+## docs-title
+Documentation
+
+## docs-description
+Every page of the documentation of mnema, by group, and the page that verifies the record in your browser.

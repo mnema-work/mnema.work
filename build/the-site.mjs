@@ -10,6 +10,9 @@ export const SITE_URL = 'https://mnema.work';
 /** The product repository: the pages come from its latest release tag, and every link to its code points here. */
 export const PRODUCT_URL = 'https://github.com/felipesauer/mnema';
 
+/** The two addresses the project answers on its domain (forwarded, never answered by e-mail): the home page shows them. */
+export const CONTACT = Object.freeze({ general: 'hello@mnema.work', security: 'security@mnema.work' });
+
 /** This repository's root (the site), as opposed to the checkout of the product the pages are read from. */
 export const SITE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 

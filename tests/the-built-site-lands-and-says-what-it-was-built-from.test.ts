@@ -49,8 +49,8 @@ import { join, posix } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { theHeadOfTheRecord } from '../build/the-build.mjs';
-import { copyOf, RECORDING, recordBackLink, themeOf } from '../build/the-pages.mjs';
-import { faviconSvg, theSources } from '../build/the-favicon.mjs';
+import { copyOf, recordBackLink, themeOf } from '../build/the-pages.mjs';
+import { faviconSvg, markSvg, theSources } from '../build/the-favicon.mjs';
 import { SITE_URL } from '../build/the-site.mjs';
 import { runInAVm } from './support/a-page-in-a-vm.js';
 import {
@@ -174,8 +174,10 @@ when('the built site', () => {
   const names = tracked('docs/*.md').map((f) => f.slice(5, -3));
 
   it('has a page for each page of docs/, and none that is not one', () => {
-    const built = pages.filter((p) => p.startsWith('docs/')).map((p) => p.split('/')[1]);
+    // /docs/ itself (`docs/index.html`) is the table of contents the build writes beside them.
+    const built = pages.filter((p) => p.startsWith('docs/') && p !== 'docs/index.html').map((p) => p.split('/')[1]);
     expect([...built].sort()).toEqual(names);
+    expect(pages, '/docs/ is a page').toContain('docs/index.html');
     expect(names.length).toBeGreaterThan(10);
     for (const name of [
       'index.html',
@@ -286,27 +288,7 @@ when('the built site', () => {
       ...[...(copyOf(readText(join(SITE, 'copy.md'))) as Map<string, string>).values()],
     ].join('\n');
 
-  it('has no sentence of its own on the landing: each block is in the README, a page of docs/, the description or an entry of site/copy.md', () => {
-    const say = sourcesSay(landingCorpus(), howItWorks());
-    const landing = html('index.html');
-    const hero = [
-      ...landing.matchAll(/<(?:h1|p)\b(?![^>]*the-build)[^>]*>([\s\S]*?)<\/(?:h1|p)>/g),
-    ].map((m) => textOf(m[1] ?? ''));
-    const blocks = [...proseBlocks(landing), ...hero];
-    expect(
-      blocks.filter((b) => b.split(' ').length < 4).length,
-      'the landing has short blocks to hold to a line',
-    ).toBeGreaterThan(0);
-    expect(blocks.length, 'the landing has prose').toBeGreaterThan(8);
-    for (const block of blocks) {
-      expect(say(block), `the landing says what no source says: ${block.slice(0, 120)}`).toBe(true);
-    }
-  });
-
-  it.each([
-    ['index.html', 15, 1],
-    ['404.html', 3, 0],
-  ])(
+  it.each([['404.html', 3, 0]])(
     'has no sentence of its own anywhere in the <main> of %s: every block, every alt, title and aria-label, and nothing left over',
     (page, least, pictures) => {
       const say = sourcesSay(landingCorpus(), howItWorks());
@@ -330,9 +312,9 @@ when('the built site', () => {
   );
 
   it('paints in the one accent and shows the bytes of the pictures: nothing drawn for the site', async () => {
-    const { ACCENT } = (await import(
-      pathToFileURL(join(ROOT, '.github/the-front-page/accent.mjs')).href
-    )) as { ACCENT: { dark: string; light: string } };
+    const { ACCENT } = (await import(pathToFileURL(join(SITE, 'build/the-palette.mjs')).href)) as {
+      ACCENT: { dark: string; light: string };
+    };
     const astro = join(DIST, '_astro');
     const css = readdirSync(astro)
       .filter((f) => f.endsWith('.css'))
@@ -345,16 +327,12 @@ when('the built site', () => {
         `the accent ${hex} is not in the built style`,
       ).toBe(true);
     }
-    // Starlight's own chrome keeps its defaults in a layer; what the front page paints is the unlayered
-    // rule of each theme, and it must be the front page's own value.
-    expect(
-      css.includes(`:root{--sl-color-accent:${ACCENT.dark};`),
-      "the dark accent is not the front page's",
-    ).toBe(true);
+    // Starlight's own chrome keeps its defaults in a layer; what the palette paints is the unlayered rule of each theme.
+    expect(css.includes(`:root{--sl-color-accent:${ACCENT.dark};`), "the dark accent is not the palette's").toBe(true);
     expect(
       /:root\[data-theme="?light"?\]\{--sl-color-accent:/.exec(css + inlined) &&
         css.includes(`{--sl-color-accent:${ACCENT.light};`),
-      "the light accent is not the front page's",
+      "the light accent is not the palette's",
     ).toBe(true);
 
     for (const file of [
@@ -370,19 +348,8 @@ when('the built site', () => {
         `${file} is not the picture of docs/assets`,
       ).toBe(true);
     }
-    const hero = [
-      ...html('index.html').matchAll(/src="([^"]*banner-(?:dark|light)[^"]*\.svg)"/g),
-    ].map((m) => m[1] as string);
-    expect(hero.length).toBeGreaterThanOrEqual(2);
-    for (const src of hero) {
-      const file = readFileSync(join(DIST, src.slice(BASE.length + 1)));
-      const which = /banner-(dark|light)/.exec(src)?.[1];
-      expect(
-        file.equals(readFileSync(join(ROOT, 'docs/assets', `banner-${which}.svg`))),
-        `${src} is not the banner`,
-      ).toBe(true);
-    }
     const sources = await theSources(ROOT);
+    const { ACCENT: DRAWN } = sources as { ACCENT: { dark: string; light: string } };
     const svg = readText(join(DIST, 'favicon.svg'));
     expect(svg, 'the favicon is not what the build draws from the product').toBe(faviconSvg(sources));
     // Read off the product's own files, not off the generator: the letter's cells, and the accent of each theme.
@@ -391,8 +358,8 @@ when('the built site', () => {
       [...svg.matchAll(/z/g)].length / 2,
       'the favicon holds the cells of the letter, twice (the letter and its shadow)',
     ).toBe(cells);
-    expect(svg.match(/\.letter\{fill:(#[0-9a-f]{6})/)?.[1], 'the light accent').toBe(ACCENT.light);
-    expect(svg.match(/@media \(prefers-color-scheme:dark\)\{\.shadow\{fill:#[0-9a-f]{6}\}\.letter\{fill:(#[0-9a-f]{6})/)?.[1], 'the dark accent').toBe(ACCENT.dark);
+    expect(svg.match(/\.letter\{fill:(#[0-9a-f]{6})/)?.[1], 'the light accent').toBe(DRAWN.light);
+    expect(svg.match(/@media \(prefers-color-scheme:dark\)\{\.shadow\{fill:#[0-9a-f]{6}\}\.letter\{fill:(#[0-9a-f]{6})/)?.[1], 'the dark accent').toBe(DRAWN.dark);
     expect(svg, 'a bare letter: no tile around it').not.toContain('<rect');
     const png = readFileSync(join(DIST, 'favicon.png'));
     expect(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true);
@@ -415,13 +382,11 @@ when('the built site', () => {
   });
 
   it('carries the calculated theme in a rule of no layer, so Starlight does not take it back', async () => {
-    const { ACCENT } = (await import(
-      pathToFileURL(join(ROOT, '.github/the-front-page/accent.mjs')).href
-    )) as { ACCENT: { dark: string; light: string } };
-    const { PAGE } = (await import(
-      pathToFileURL(join(ROOT, '.github/the-front-page/draw.mjs')).href
-    )) as { PAGE: { dark: string; light: string } };
-    const theme = themeOf({ ACCENT, PAGE }) as Record<'dark' | 'light', Record<string, string>>;
+    const { ACCENT, PAGE, INK } = (await import(pathToFileURL(join(SITE, 'build/the-palette.mjs')).href)) as Record<
+      'ACCENT' | 'PAGE' | 'INK',
+      { dark: string; light: string }
+    >;
+    const theme = themeOf({ ACCENT, PAGE, INK }) as Record<'dark' | 'light', Record<string, string>>;
     const astro = join(DIST, '_astro');
     const css = readdirSync(astro)
       .filter((f) => f.endsWith('.css'))
@@ -455,111 +420,6 @@ when('the built site', () => {
     }
   });
 
-  /** The text of a piece of HTML as the reader's browser reads it: the entities undone, no white space touched. */
-  const unescaped = (s: string): string =>
-    s
-      .replace(/&#x([0-9a-f]+);/gi, (_m, h: string) => String.fromCodePoint(Number.parseInt(h, 16)))
-      .replace(/&#(\d+);/g, (_m, d: string) => String.fromCodePoint(Number(d)))
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&amp;/g, '&');
-
-  it('shows on the landing the verdict of the committed record: the command of the Quick start and the bytes of a run of its own', () => {
-    const landing = html('index.html');
-    const figure =
-      /<figure class="the-verdict[^"]*"[^>]*>([\s\S]*?)<\/figure>/.exec(landing)?.[1] ?? '';
-    const command = verifyCommandInReadme();
-    expect(/<code>([^<]*)<\/code>/.exec(figure)?.[1], 'the command beside the verdict').toBe(
-      command,
-    );
-    const shown = unescaped(
-      /<pre\b[^>]*data-verdict[^>]*>([\s\S]*?)<\/pre>/.exec(figure)?.[1] ?? '',
-    );
-    expect(shown, 'the verdict is shown').not.toBe('');
-    expect(
-      shown.split('\n').some((l) => l.startsWith('private:')),
-      'a private tree is in the verdict',
-    ).toBe(false);
-
-    // An independent run: the record of HEAD, taken out of the repository into a directory of its own, and the binary on it.
-    const dir = mkdtempSync(join(tmpdir(), 'the-verdict-landing-'));
-    try {
-      const tar = join(dir, 'record.tar');
-      execFileSync('git', ['archive', '--format=tar', '-o', tar, 'HEAD', '.mnema'], { cwd: ROOT });
-      const tree = join(dir, 'tree');
-      mkdirSync(tree);
-      execFileSync('tar', ['-xf', tar, '-C', tree]);
-      execFileSync('git', ['init', '-q', tree]);
-      const home = mkdtempSync(join(tmpdir(), 'the-verdict-landing-home-'));
-      const ran = spawnSync(
-        process.execPath,
-        [join(ROOT, 'packages/code/dist/cli.js'), ...command.split(' ').slice(1)],
-        { cwd: tree, env: { HOME: home, PATH: process.env.PATH ?? '' }, encoding: 'utf8' },
-      );
-      rmSync(home, { recursive: true, force: true });
-      expect(ran.status, ran.stderr).toBe(0);
-      expect(shown, 'the landing shows the bytes of a run of its own').toBe(ran.stdout);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-    expect(
-      /data-commit href="[^"]*\/commit\/([0-9a-f]{40})"/.exec(figure)?.[1],
-      'the commit beside the verdict',
-    ).toBe(head());
-    // What a reader sees of the commit is its first twelve characters, not a sentence typed in the anchor.
-    const anchor = /<a\b([^>]*\bdata-commit\b[^>]*)>([\s\S]*?)<\/a>/.exec(figure);
-    expect(anchor?.[2]?.replace(/<[^>]*>/g, ''), 'the text of the commit beside the verdict').toBe(
-      head().slice(0, 12),
-    );
-    expect(
-      `${anchor?.[1] ?? ''}${anchor?.[2] ?? ''}`,
-      'a label or a title typed in the commit anchor',
-    ).not.toMatch(/\b(aria-label|title)=/);
-    expect(
-      (/<main\b[^>]*>([\s\S]*)<\/main>/.exec(landing)?.[1] ?? '').match(/<pre\b[^>]*data-verdict/g)
-        ?.length,
-      'one verdict in the <main> of the landing',
-    ).toBe(1);
-  }, 60_000);
-
-  it('shows on the landing the recording of the repository, as the README words it, and on no other page', () => {
-    const gif = join(ROOT, RECORDING);
-    expect(
-      readFileSync(join(DIST, RECORDING)).equals(readFileSync(gif)),
-      "the recording is not the repository's",
-    ).toBe(true);
-    const landing = html('index.html');
-    const img =
-      new RegExp(`<img\\b[^>]*src="[^"]*${RECORDING.replace(/[./]/g, '\\$&')}"[^>]*>`).exec(
-        landing,
-      )?.[0] ?? '';
-    expect(img, 'the landing shows the recording').not.toBe('');
-    const readme = readText(join(ROOT, 'README.md'));
-    const alt = /\salt="([^"]*)"/.exec(img)?.[1] ?? '?';
-    expect(readme, "the alt is the README's").toContain(
-      `<img src="${RECORDING}" alt="${alt.replace(/&#39;/g, "'")}"`,
-    );
-    expect(img).toContain('loading="lazy"');
-    const caption =
-      /<figure class="the-recording[^"]*"[^>]*>[\s\S]*?<figcaption>([\s\S]*?)<\/figcaption>/.exec(
-        landing,
-      )?.[1] ?? '';
-    // The README's own caption has links in it, so what is compared is the words, with the tags out.
-    const cell = new RegExp(
-      `<img src="${RECORDING.replace(/[./]/g, '\\$&')}"[^>]*><br><sub>([\\s\\S]*?)</sub>`,
-    ).exec(readme)?.[1];
-    expect(cell, "the README has the recording's cell").toBeDefined();
-    expect(textOf(cell ?? ''), "the caption is the README's").toContain(
-      textOf(caption).split(' Recorded')[0] ?? '?',
-    );
-    for (const other of ['404.html', 'docs/install/index.html']) {
-      expect(html(other), `${other} carries the proof`).not.toMatch(
-        /the-proof|data-verdict|a-tamper-caught/,
-      );
-    }
-  });
-
   it('shows on the page of what it proves the recording of a changed word, from the GIF the site carries', () => {
     const page = html('docs/what-it-proves/index.html');
     const src = /<img\b[^>]*src="([^"]*recordings\/a-tamper-caught\.gif)"/.exec(page)?.[1] ?? '';
@@ -573,84 +433,24 @@ when('the built site', () => {
     ).toBe(true);
   });
 
-  it('offers on the landing the line the README opens its Quick start with, and copies exactly it', () => {
-    const readme = readText(join(ROOT, 'README.md'));
-    const quick = /\n## Quick start\n[\s\S]*?```sh\n([^\n]*)\n/.exec(readme)?.[1] ?? '';
-    const line = quick.split('#')[0]?.trim() ?? '';
-    expect(line, 'the Quick start opens with a command').toMatch(/^\S/);
-    const install =
-      /<div class="the-install">([\s\S]*?)<\/figure><\/div><\/div>/.exec(html('index.html'))?.[1] ??
-      '';
-    expect(install, 'the landing has the install line').not.toBe('');
-    expect(textOf(/<pre\b[\s\S]*?<\/pre>/.exec(install)?.[0] ?? '')).toBe(line);
-    expect(/data-code="([^"]*)"/.exec(install)?.[1], 'what the button copies').toBe(line);
-  });
-
-  it('shows as cards the cells of the README table and the steps of its How it works, in the README order', () => {
-    const readme = readText(join(ROOT, 'README.md'));
-    const table = /<table>([\s\S]*?)<\/table>/.exec(readme)?.[1] ?? '';
-    const cell = (tag: string): string[] =>
-      [...table.matchAll(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`, 'g'))].map((m) =>
-        textOf(m[1] ?? ''),
-      );
-    const steps = [
-      ...(/\n## How it works\n([\s\S]*?)\n## /.exec(readme)?.[1] ?? '').matchAll(
-        /^\d\. \*\*([^*]+?)\.\*\* (.+)$/gm,
-      ),
-    ];
-    const grids = [
-      ...html('index.html').matchAll(
-        /<div class="card-grid[^"]*">([\s\S]*?)<\/div><\/div>(?=<(?:section|h2|\/main|div class="the-|footer))/g,
-      ),
-    ];
-    const cardsOf = (grid: string): { title: string; body: string }[] =>
-      [...grid.matchAll(/<article class="card[^"]*">[\s\S]*?<\/article>/g)].map((a) => ({
-        title: norm(textOf(/<p class="title[^"]*">([\s\S]*?)<\/p>/.exec(a[0])?.[1] ?? '')),
-        body: norm(textOf(/<div class="body[^"]*">([\s\S]*?)<\/div>/.exec(a[0])?.[1] ?? '')),
-      }));
-    expect(grids.length, 'two grids of cards: the table and the steps').toBe(2);
-    expect(cardsOf(grids[0]?.[1] ?? '')).toEqual(
-      cell('th').map((title, i) => ({ title: norm(title), body: norm(cell('td')[i] ?? '?') })),
-    );
-    expect(cell('th')).toHaveLength(3);
-    expect(steps).toHaveLength(4);
-    expect(cardsOf(grids[1]?.[1] ?? '')).toEqual(
-      steps.map((m) => ({ title: norm(m[1] ?? '?'), body: norm(m[2] ?? '') })),
-    );
-    expect(html('index.html')).toMatch(/<h2 id="how-it-works">How it works<\/h2>/);
-  });
-
-  it("puts in the head of every page the banner's wordmark, the name of the repository read once, and no title in letters", async () => {
-    const { headerWordmark } = await import(
-      pathToFileURL(join(ROOT, '.github/the-front-page/draw.mjs')).href
-    );
-    const { THE_BLOCKS } = await fromTheProduct('packages/code/dist/presentation/banner.js');
-    const rootPackage = JSON.parse(readText(join(ROOT, 'package.json'))) as {
-      repository: { url: string };
-    };
-    const name = /\/([^/.]+)(?:\.git)?$/.exec(rootPackage.repository.url)?.[1] ?? '?';
-    for (const page of ['index.html', '404.html', 'docs/install/index.html']) {
-      const title =
-        /<a href="[^"]*" class="site-title[^>]*>([\s\S]*?)<\/a>/.exec(html(page))?.[1] ?? '';
-      const images = [...title.matchAll(/<img\b[^>]*>/g)].map((m) => m[0]);
-      expect(images, `${page}: one wordmark per theme`).toHaveLength(2);
-      expect(
-        [...title.matchAll(/<span class="sr-only[^"]*"[^>]*>([^<]*)<\/span>/g)].map((m) => m[1]),
-        `${page}: the title is named once, by the repository's name`,
-      ).toEqual([name]);
-      for (const [i, theme] of ['dark', 'light'].entries()) {
+  it('puts in the head of every page of docs/ the mark, linked to the home page, and the name once', async () => {
+    const sources = await theSources(ROOT);
+    for (const page of ['404.html', 'docs/install/index.html']) {
+      const title = /<a href="([^"]*)" class="site-title[^>]*>([\s\S]*?)<\/a>/.exec(html(page));
+      expect(title?.[1], `${page}: the head links back to the home page`).toBe('/');
+      const images = [...(title?.[2] ?? '').matchAll(/<img\b[^>]*>/g)].map((m) => m[0]);
+      expect(images, `${page}: one mark per theme`).toHaveLength(2);
+      for (const [i, theme] of (['dark', 'light'] as const).entries()) {
         const img = images[i] ?? '';
-        // The name is read once: the images are decoration and the `sr-only` of the title says it.
-        // An empty `alt` is written bare (`alt`) or as `alt=""`; no `alt` at all would not be an empty one.
         const alt = /\salt(?:="([^"]*)")?(?=[\s>])/.exec(img);
-        expect(alt?.[1] ?? (alt ? '' : '?'), `${page}: no second name in the image`).toBe('');
+        expect(alt?.[1] ?? (alt ? '' : '?'), `${page}: the name is not said twice`).toBe('');
         const src = /\ssrc="([^"]*)"/.exec(img)?.[1] ?? '';
-        expect(src, `${page}: the ${theme} wordmark`).toContain(`wordmark-${theme}.`);
-        expect(
-          readText(join(DIST, src.slice(BASE.length))),
-          `${page}: the ${theme} wordmark is drawn from the rows`,
-        ).toBe(headerWordmark(THE_BLOCKS, theme));
+        expect(src, `${page}: the ${theme} mark`).toContain(`mark-${theme}.`);
+        expect(readText(join(DIST, src.slice(BASE.length))), `${page}: the ${theme} mark is the favicon's letter`).toBe(
+          markSvg(sources, theme, 28),
+        );
       }
+      expect(textOf(title?.[2] ?? ''), `${page}: the name`).toBe('mnema');
     }
   });
 

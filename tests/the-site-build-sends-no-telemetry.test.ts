@@ -101,3 +101,82 @@ describe('a build of the site', () => {
     ).toBe(false);
   });
 });
+
+/**
+ * NO PAGE ASKS ANOTHER HOST FOR A FONT, A SCRIPT OR A STYLE. The typefaces come from `@fontsource` packages and are
+ * served from the site's own `/_astro/`; a `<script src>`, a stylesheet, a preload, a preconnect or a `url()` of a style
+ * that names another host is a request a reader's browser would make on every visit, which is what the product refuses
+ * to do to a person. Held over every built page and every built style, and over the sources that write them.
+ */
+const DIST_DIR = join(SITE, 'dist');
+const BUILT = existsSync(join(DIST_DIR, 'index.html'));
+const whenBuilt = BUILT ? describe : describe.skip;
+
+const ABSOLUTE = /^(?:https?:)?\/\//;
+
+/** The addresses a page or a style loads something from, that name another host: element, rule and the line itself. */
+function theOtherHostsOf(text: string): string[] {
+  const found: string[] = [];
+  for (const tag of text.matchAll(/<(script|link|iframe|img|source|video|audio|object|embed)\b[^>]*>/gi)) {
+    const el = tag[0];
+    const kind = (tag[1] ?? '').toLowerCase();
+    const attr = (name: string): string | undefined => new RegExp(`\\s${name}\\s*=\\s*["']?([^"'\\s>]+)`, 'i').exec(el)?.[1];
+    const loads = kind === 'link' ? attr('href') : attr('src');
+    // A link that only names a document (a canonical, an alternate) loads nothing; a stylesheet, an icon, a preload,
+    // a preconnect or a dns-prefetch does.
+    const rel = (attr('rel') ?? '').toLowerCase();
+    const loading = kind !== 'link' || /stylesheet|preload|modulepreload|prefetch|preconnect|dns-prefetch|icon|manifest/.test(rel);
+    if (loading && loads !== undefined && ABSOLUTE.test(loads)) found.push(el);
+  }
+  for (const rule of text.matchAll(/@import\s+(?:url\()?["']?(?:https?:)?\/\/[^"')\s;]+|\burl\(\s*["']?(?:https?:)?\/\/[^"')\s]+/g)) found.push(rule[0]);
+  return found;
+}
+
+describe('the ruler of the other hosts a page loads from', () => {
+  it('finds a script, a stylesheet, a preconnect and a url() that name another host, and nothing else', () => {
+    expect(theOtherHostsOf('<script src="https://x.example/a.js"></script>')).toHaveLength(1);
+    expect(theOtherHostsOf('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=A">')).toHaveLength(1);
+    expect(theOtherHostsOf('<link rel="preconnect" href="https://fonts.gstatic.com">')).toHaveLength(1);
+    expect(theOtherHostsOf('a{src:url(https://x.example/f.woff2)}')).toHaveLength(1);
+    expect(theOtherHostsOf('@import "//x.example/a.css";')).toHaveLength(1);
+    expect(theOtherHostsOf('<link rel="canonical" href="https://mnema.work/"><a href="https://github.com/x">')).toEqual([]);
+    expect(theOtherHostsOf('<script src="/_astro/page.js"></script><link rel="stylesheet" href="/_astro/a.css">')).toEqual([]);
+  });
+});
+
+whenBuilt('the built site', () => {
+  const files = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(join(dir, e.name)).map((f) => join(e.name, f)) : [e.name]));
+  const built = (BUILT ? files(DIST_DIR) : []).filter((f) => !f.startsWith('pagefind/'));
+
+  it('loads no font, script or style from another host, on any page or in any style', () => {
+    const pages = built.filter((f) => /\.(?:html|css)$/.test(f));
+    expect(pages.length, 'the sweep read pages').toBeGreaterThan(20);
+    for (const file of pages) {
+      expect(theOtherHostsOf(readFileSync(join(DIST_DIR, file), 'utf-8')), `${file} loads from another host`).toEqual([]);
+    }
+  });
+
+  it('serves the two typefaces itself: every @font-face names a file of the build', () => {
+    // Starlight writes its styles into each page, and the home page's go to a file of `_astro/`: both are read.
+    const css = built
+      .filter((f) => /\.(?:css|html)$/.test(f))
+      .map((f) => readFileSync(join(DIST_DIR, f), 'utf-8'))
+      .join('\n');
+    const faces = [...css.matchAll(/@font-face\{[^}]*\}/g)].map((m) => m[0]);
+    expect(faces.length, 'the typefaces are declared').toBeGreaterThanOrEqual(7);
+    for (const face of faces) {
+      for (const m of face.matchAll(/url\(([^)]+)\)/g)) {
+        const path = (m[1] ?? '').replace(/["']/g, '');
+        expect(path.startsWith('/_astro/'), `${path} is not a file of the build`).toBe(true);
+        expect(existsSync(join(DIST_DIR, path)), `${path} is missing`).toBe(true);
+      }
+    }
+  });
+
+  it('writes nothing that loads from another host in the sources of the pages', () => {
+    for (const path of ['src/pages/index.astro', 'src/styles/home.css', 'src/styles/site.css', 'astro.config.mjs']) {
+      expect(theOtherHostsOf(read(path)), `${path} loads from another host`).toEqual([]);
+    }
+  });
+});

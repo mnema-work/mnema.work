@@ -6,46 +6,40 @@ import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } f
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
-  cardsOf,
   copyOf,
   docNames,
+  docsIndexOf,
   factsOf,
   headOfTheRecord,
-  installLineOf,
   llmsTxt,
   pageOf,
   pitchOf,
-  RECORDING,
-  recordingOf,
-  stepsOf,
   templateOf,
   themeCss,
+  sidebarOf,
   sitemapWith,
   verifyCommandOf,
   withoutWhatIsNotOnTheSite,
 } from './the-pages.mjs';
-import { faviconPng, faviconSvg, theSources } from './the-favicon.mjs';
+import { faviconPng, faviconSvg, markSvg, theSources } from './the-favicon.mjs';
+import { hostsOf, installOf, MEASURED, measuredOf, verdictLinesOf } from './the-home.mjs';
+import { ACCENT, INK, PAGE, paletteCss } from './the-palette.mjs';
 import { tagOf } from './the-product.mjs';
 import { theVerdictOfTheCommit } from './the-record.mjs';
-import { SITE, SITE_URL } from './the-site.mjs';
+import { CONTACT, SITE, SITE_URL } from './the-site.mjs';
 
 export { SITE };
 
 /** Everything `prepare` writes, and nothing else: all of it is ignored by git. */
 export const WRITTEN = Object.freeze([
   'src/content/docs/docs',
+  // The home page is `src/pages/index.astro` now: a page of the content collection at the root would take its address.
   'src/content/docs/index.md',
   'src/content/docs/404.md',
   'src/assets',
   'src/generated',
   'public',
 ]);
-
-/** The width and the height of a GIF, from its header (bytes 6 to 9, little-endian). */
-export function sizeOfGif(bytes) {
-  if (bytes.subarray(0, 3).toString('latin1') !== 'GIF') throw new Error(`${RECORDING} is not a GIF`);
-  return { width: bytes.readUInt16LE(6), height: bytes.readUInt16LE(8) };
-}
 
 /** What the site is built from, read now: the checkout's tag, commit and packages say it, nothing is typed here. */
 export async function theFacts(root) {
@@ -90,55 +84,68 @@ export async function prepare({ root, site = SITE }) {
     return text;
   };
 
-  // The two pages that are not a page of `docs/`: each is a tracked template, filled the same way.
-  for (const [template, page] of [['landing.md', 'index.md'], ['not-found.md', '404.md']]) {
-    const text = readFileSync(join(site, template), 'utf8');
-    writeFileSync(into(`src/content/docs/${page}`), templateOf({ template: text, readme, facts, docs, copy }));
-  }
+  // /docs/ itself: the table of contents, from the README's groups and the record page.
+  const sidebar = sidebarOf({ readme, facts, docs, record: { label: copy('record'), link: '/record/' } });
+  writeFileSync(
+    into('src/content/docs/docs/index.md'),
+    docsIndexOf({ sidebar, title: copy('docs-title'), description: copy('docs-description') }),
+  );
 
-  // The proof: the verdict of the record committed at this sha, run with the command the Quick start shows, and
-  // the recording the README holds, copied as it is.
-  const command = verifyCommandOf(readme);
-  const output = theVerdictOfTheCommit({ root, sha: facts.sha, command });
-  const gif = readFileSync(join(root, RECORDING));
+  // The page that is not a page of `docs/`: a tracked template, filled the same way. The home page is not written
+  // here: it is `src/pages/index.astro`, which reads `src/generated/home.json`.
+  const notFound = readFileSync(join(site, 'not-found.md'), 'utf8');
+  writeFileSync(into('src/content/docs/404.md'), templateOf({ template: notFound, readme, facts, docs, copy }));
+
   // Every recording the repository holds is carried, because a page of docs/ may show any of them.
   for (const file of readdirSync(join(root, 'recordings')).filter((f) => f.endsWith('.gif'))) {
     cpSync(join(root, 'recordings', file), into(`public/recordings/${file}`));
   }
-  const recording = { ...recordingOf({ readme, path: RECORDING, facts, docs }), ...sizeOfGif(gif), src: `${facts.base}/${RECORDING}` };
-  const caption = copy('verdict-caption');
   // What /record/ says of itself in a search result: two entries of the microcopy, kept for the step after Astro.
   writeFileSync(into('src/generated/record.json'), `${JSON.stringify({ title: copy('record-title'), description: copy('record-description') })}\n`);
-  writeFileSync(
-    into('src/generated/proof.json'),
-    `${JSON.stringify({ command, output, sha: facts.sha, repoUrl: facts.repoUrl, caption, recording, copyTaken: [...taken].sort() }, null, 2)}\n`,
-  );
+  writeFileSync(into('src/generated/copy.json'), `${JSON.stringify({ copyTaken: [...taken].sort() }, null, 2)}\n`);
 
-  // What the hero reads of the README: the line that installs, the three cards and the four steps.
-  const top = withoutWhatIsNotOnTheSite(readme, 'README.md');
+  // What the home page shows and does not say in its own words: counts, hosts, commands and the verdict, all read here.
+  const hostsPage = readFileSync(join(root, 'docs/hosts.md'), 'utf8');
+  const verdict = theVerdictOfTheCommit({ root, sha: facts.sha, command: verifyCommandOf(readme) });
   writeFileSync(
-    into('src/generated/hero.json'),
-    `${JSON.stringify({ install: installLineOf(top), cards: cardsOf(top), how: stepsOf(top, 'How it works') }, null, 2)}\n`,
+    into('src/generated/home.json'),
+    `${JSON.stringify(
+      {
+        measured: measuredOf(root),
+        measuredUrl: `${facts.repoUrl}/tree/${facts.tag}/${MEASURED}`,
+        ...hostsOf(readme),
+        install: installOf({ readme, hostsPage }),
+        verdict: { command: verifyCommandOf(readme), lines: verdictLinesOf(verdict) },
+        links: {
+          npm: facts.npmUrl,
+          marketplace: `https://marketplace.visualstudio.com/items?itemName=${facts.extensionId}`,
+          github: facts.repoUrl,
+          sha: facts.sha,
+        },
+        contact: CONTACT,
+        description: facts.description,
+        version: facts.version,
+        tag: facts.tag,
+        card: { alt: pitchOf(withoutWhatIsNotOnTheSite(readme, 'README.md')).title },
+      },
+      null,
+      2,
+    )}\n`,
   );
 
   for (const file of readdirSync(join(root, 'docs/assets'))) {
     cpSync(join(root, 'docs/assets', file), into(`public/assets/${file}`));
   }
-  for (const file of ['banner-dark.svg', 'banner-light.svg']) {
-    cpSync(join(root, 'docs/assets', file), into(`src/assets/${file}`));
-  }
 
-  const { ACCENT } = await import(pathToFileURL(join(root, '.github/the-front-page/accent.mjs')).href);
-  const { PAGE, headerWordmark } = await import(pathToFileURL(join(root, '.github/the-front-page/draw.mjs')).href);
-  writeFileSync(into('src/generated/theme.css'), themeCss({ ACCENT, PAGE }));
-  const { THE_BLOCKS } = await import(pathToFileURL(join(root, 'packages/code/dist/presentation/banner.js')).href);
+  writeFileSync(into('src/generated/theme.css'), themeCss({ ACCENT, PAGE, INK }));
+  writeFileSync(into('src/generated/palette.css'), paletteCss());
   const sources = await theSources(root);
   writeFileSync(into('public/favicon.svg'), faviconSvg(sources));
   writeFileSync(into('public/favicon.png'), await faviconPng(sources));
   // The domain the pages are served from, read by GitHub Pages from the published output.
   writeFileSync(into('public/CNAME'), `${new URL(SITE_URL).host}\n`);
-  // The head's wordmark: the banner's letters alone, from the same rows.
-  for (const theme of ['dark', 'light']) writeFileSync(into(`src/assets/wordmark-${theme}.svg`), headerWordmark(THE_BLOCKS, theme));
+  // The mark beside the name, in the docs' header and on the home page: the same letter as the favicon, in the paints of a theme.
+  for (const theme of ['dark', 'light']) writeFileSync(into(`src/assets/mark-${theme}.svg`), markSvg(sources, theme, 28));
   writeFileSync(into('src/generated/the-build.json'), `${JSON.stringify({ version: facts.version, tag: facts.tag, sha: facts.sha, repoUrl: facts.repoUrl })}\n`);
   return facts;
 }
@@ -182,3 +189,15 @@ export async function writeTheRest({ root, out = join(SITE, 'dist') }) {
   writeFileSync(join(out, 'robots.txt'), `User-agent: *\nAllow: /\n\nSitemap: ${facts.siteUrl}${facts.base}/sitemap-index.xml\n`);
 }
 
+
+/** The two typefaces the site serves, and the packages they come from: the Open Font Licence asks that its text travel with them. */
+export const FONT_PACKAGES = Object.freeze(['@fontsource/jetbrains-mono', '@fontsource/instrument-sans']);
+
+/** `fonts-licence.txt` at the root of the built site: the licence of each typeface, as its package carries it. */
+export function writeTheFontLicences({ out = join(SITE, 'dist') } = {}) {
+  const text = FONT_PACKAGES.map((name) => {
+    const licence = readFileSync(join(SITE, 'node_modules', name, 'LICENSE'), 'utf8').trim();
+    return `${name}\n${'='.repeat(name.length)}\n\n${licence}\n`;
+  }).join('\n');
+  writeFileSync(join(out, 'fonts-licence.txt'), text);
+}

@@ -25,9 +25,14 @@ directory that is not exactly at a release tag, that has a tracked file changed 
 
 ## What the build does
 
-1. Writes the pages of `docs/`, the landing and the 404 from the checkout (`build/the-build.mjs`, `build/the-pages.mjs`),
-   with the links rewritten to where they land.
-2. Lets Astro (Starlight) build them, with its anonymous usage data off.
+1. Writes the pages of `docs/`, the table of contents at `/docs/` and the 404 from the checkout (`build/the-build.mjs`,
+   `build/the-pages.mjs`), with the links rewritten to where they land, and the facts the home page shows (the measured
+   counts, the hosts and their rungs, the install commands, the verdict of the record), read from the same checkout
+   (`build/the-home.mjs`). The home page itself, `/`, is `src/pages/index.astro`: its words are the page's, and a test
+   holds every number, host and command in it to the file it is read from.
+2. Lets Astro build the home page and Starlight the docs, both in the palette of `build/the-palette.mjs` and set in two
+   typefaces served from this site (`@fontsource`, Open Font Licence: no page asks another host for anything), with its
+   anonymous usage data off.
 3. Writes `/record/` with the binary built from the same checkout, and stops when the record does not verify. The binary
    is the one of that tag, built from its sources, and not a version taken from npm: the site is made of one tag, and a
    tag does not depend on when a package reaches a registry.

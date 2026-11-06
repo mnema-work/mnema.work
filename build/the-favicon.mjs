@@ -47,6 +47,17 @@ function pathsOf(sources) {
   return { letter: letter(0, 0), shadow: letter(off, off) };
 }
 
+/**
+ * The same drawing in the paints of ONE theme, for a page that knows its theme (the docs' header, the home page): no
+ * media query, `fill` on the two paths, and a size of its own.
+ * @param {'dark' | 'light'} theme
+ */
+export function markSvg(sources, theme, size = 32) {
+  const { letter, shadow } = pathsOf(sources);
+  const paints = paintsOf(sources, theme);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${SIDE} ${SIDE}" aria-hidden="true"><path fill="${paints.shadow}" d="${shadow}"/><path fill="${paints.letter}" d="${letter}"/></svg>\n`;
+}
+
 const OPEN = `<svg xmlns="http://www.w3.org/2000/svg" width="${SIDE}" height="${SIDE}" viewBox="0 0 ${SIDE} ${SIDE}">`;
 
 /**

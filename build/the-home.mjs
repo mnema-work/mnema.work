@@ -94,7 +94,6 @@ export function installOf({ readme, hostsPage }) {
  */
 export function verdictLinesOf(output) {
   // The verdict is the first line; the indented lines after it are census lines, not clauses of it.
-  // The verdict is the first line; the indented lines after it are census lines, not clauses of it.
   const clauses = (output.trim().split('\n')[0] ?? '').split('; ');
   const verified = clauses.find((c) => c.startsWith('public: local integrity verified'));
   const signed = clauses.find((c) => c === 'all events are signature-covered');

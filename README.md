@@ -1,6 +1,6 @@
 # mnema.work
 
-The source of [mnema.work](https://mnema.work): the presentation of [mnema](https://github.com/felipesauer/mnema), its
+The source of [mnema.work](https://mnema.work): the presentation of [mnema](https://github.com/mnema-work/mnema), its
 documentation at `/docs/<page>` and the page that verifies its own record at `/record/`.
 
 This repository holds the build and the presentation. It holds no copy of the documentation, the README or the record:
@@ -12,7 +12,7 @@ its footer (the version and the commit it was built from).
 Build the product at a release tag, then the site against it:
 
 ```sh
-git clone --depth 1 --branch v0.1.5 https://github.com/felipesauer/mnema.git product
+git clone --depth 1 --branch v0.1.5 https://github.com/mnema-work/mnema.git product
 (cd product && pnpm install --frozen-lockfile && pnpm build)
 
 npm ci --ignore-scripts

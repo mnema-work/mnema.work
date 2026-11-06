@@ -23,6 +23,12 @@ PRODUCT_DIR=product npm test               # the built pages held to their sourc
 Node `^24.15.0 || >=26.0.0`. The checkout is given, never looked for: `--from <dir>` or `PRODUCT_DIR`. The build refuses a
 directory that is not exactly at a release tag, that has a tracked file changed or that was not built.
 
+To check the docs of any commit of the product, for example the head of a pull request, add `--check`:
+`node build/build.mjs --from <checkout> --check`. The checkout may be at any commit and need not be built (a tracked file
+changed is still refused). It builds the pages of `docs/` with the same links, table of contents and Starlight build as a
+release, and stops on what a release build stops on for them; it does not write `/record/`, `og.png`, `llms.txt`,
+`robots.txt` or the favicon, which need a release and the product built, and what it builds is for throwing away.
+
 ## What the build does
 
 1. Writes the pages of `docs/`, the table of contents at `/docs/` and the 404 from the checkout (`build/the-build.mjs`,

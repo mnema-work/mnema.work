@@ -7,7 +7,8 @@
   },
   "scripts": {
     "build": "node build/build.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@astrojs/starlight": "0.42.8",

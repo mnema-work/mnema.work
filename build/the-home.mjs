@@ -93,7 +93,9 @@ export function installOf({ readme, hostsPage }) {
  * its clauses, kept as they are, and only the two the page quotes. A verdict without them stops the build.
  */
 export function verdictLinesOf(output) {
-  const clauses = output.trim().split('; ');
+  // The verdict is the first line; the indented lines after it are census lines, not clauses of it.
+  // The verdict is the first line; the indented lines after it are census lines, not clauses of it.
+  const clauses = (output.trim().split('\n')[0] ?? '').split('; ');
   const verified = clauses.find((c) => c.startsWith('public: local integrity verified'));
   const signed = clauses.find((c) => c === 'all events are signature-covered');
   if (!verified || !signed) throw new Error(`the verdict of the record no longer has the clauses the home page quotes:\n${output}`);

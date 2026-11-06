@@ -70,6 +70,13 @@ describe('the readings of the home page, over fixtures', () => {
       'all events are signature-covered',
     ]);
   });
+
+  it('still finds the two clauses it quotes when an indented census line follows the verdict', () => {
+    const census = '  census [unnamed-tail] public 9a9b7666: the tail names no record\n';
+    expect(
+      verdictLinesOf(`public: local integrity verified (T1/T2/T4); x; all events are signature-covered\n${census}`),
+    ).toEqual(['public: local integrity verified (T1/T2/T4)', 'all events are signature-covered']);
+  });
 });
 
 when('the built home page', () => {

@@ -12,11 +12,22 @@ export const RELEASE_TAG = /^v\d+\.\d+\.\d+$/;
 const git = (root, ...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 
 /**
+ * Whether the build is the CHECK of the docs (`--check`, or SITE_CHECK=1 for the process Astro runs in): the checkout may
+ * be at any commit, and the site that is built is thrown away. Nothing of a check is ever published.
+ * @param {{ argv?: string[], env?: Record<string, string | undefined> }} [from]
+ */
+export function isCheck({ argv = process.argv.slice(2), env = process.env } = {}) {
+  return argv.includes('--check') || env.SITE_CHECK === '1';
+}
+
+/**
  * The checkout the pages are read from, as an absolute path. It must be a git checkout of the product, at a release
- * tag exactly, with no tracked file changed: the site says it was built from that tag, so it is.
+ * tag exactly, with no tracked file changed: the site says it was built from that tag, so it is. In the check of the
+ * docs (`isCheck`) it may be at any commit, built or not, and a tracked file changed is still refused.
  * @param {{ argv?: string[], env?: Record<string, string | undefined> }} [from]
  */
 export function productRoot({ argv = process.argv.slice(2), env = process.env } = {}) {
+  const check = isCheck({ argv, env });
   const at = argv.indexOf('--from');
   const given = at === -1 ? env.PRODUCT_DIR : argv[at + 1];
   if (given === undefined || given === '' || given.startsWith('--')) {
@@ -26,10 +37,11 @@ export function productRoot({ argv = process.argv.slice(2), env = process.env } 
   if (!existsSync(join(root, 'packages/code/package.json')) || !existsSync(join(root, 'docs'))) {
     throw new Error(`${root} is not a checkout of the product: it has no packages/code/package.json and no docs/`);
   }
-  const tag = tagOf(root);
+  const pointed = check ? git(root, 'rev-parse', 'HEAD') : tagOf(root);
   if (git(root, 'status', '--porcelain', '--untracked-files=no') !== '') {
-    throw new Error(`${root} has changed tracked files, so it is not the tag ${tag}`);
+    throw new Error(`${root} has changed tracked files, so it is not ${check ? 'the commit' : 'the tag'} ${pointed}`);
   }
+  if (check) return root;
   const built = join(root, 'packages/code/dist/cli.js');
   if (!existsSync(built)) throw new Error(`${root} has no ${built}: build the checkout first (pnpm install --frozen-lockfile && pnpm build)`);
   return root;

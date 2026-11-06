@@ -70,6 +70,13 @@ describe('the readings of the home page, over fixtures', () => {
       'all events are signature-covered',
     ]);
   });
+
+  it('still finds the two clauses it quotes when an indented census line follows the verdict', () => {
+    const census = '  census [unnamed-tail] public 9a9b7666: the tail names no record\n';
+    expect(
+      verdictLinesOf(`public: local integrity verified (T1/T2/T4); x; all events are signature-covered\n${census}`),
+    ).toEqual(['public: local integrity verified (T1/T2/T4)', 'all events are signature-covered']);
+  });
 });
 
 when('the built home page', () => {
@@ -162,7 +169,11 @@ when('the built home page', () => {
       ...claude.map((c) => `$ ${c}`),
       `# in VS Code: ${extension}`,
     ]);
-    expect(claude).toEqual(['claude plugin marketplace add felipesauer/mnema', 'claude plugin install mnema@mnema']);
+    // The lines are the checkout's own (the page shows exactly `claude`, above); here only their shape is held, so the
+    // case is green at any release of the product, whoever owns the repository the marketplace is added from.
+    expect(claude).toHaveLength(2);
+    expect(claude[0]).toMatch(/^claude plugin marketplace add [\w.-]+\/[\w.-]+$/);
+    expect(claude[1]).toBe('claude plugin install mnema@mnema');
   });
 
   it('copies in the click, with the clipboard API and a fallback that selects the text', () => {

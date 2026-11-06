@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 export const SITE_URL = 'https://mnema.work';
 
 /** The product repository: the pages come from its latest release tag, and every link to its code points here. */
-export const PRODUCT_URL = 'https://github.com/felipesauer/mnema';
+export const PRODUCT_URL = 'https://github.com/mnema-work/mnema';
 
 /** The two addresses the project answers on its domain (forwarded, never answered by e-mail): the home page shows them. */
 export const CONTACT = Object.freeze({ general: 'hello@mnema.work', security: 'security@mnema.work' });

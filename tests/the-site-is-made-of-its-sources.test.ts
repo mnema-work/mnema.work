@@ -1029,3 +1029,41 @@ describe('what this repository tracks', () => {
     expect(files, 'the favicon generator is among the files swept').toContain(THE_FAVICON);
   });
 });
+
+describe('/record/ is written from a record that verifies, or not at all', () => {
+  const binary = join(ROOT, 'packages/code/dist/cli.js');
+  const out = mkdtempSync(join(tmpdir(), 'the-record-'));
+  afterAll(() => rmSync(out, { recursive: true, force: true }));
+
+  it('is written for this repository: the page is what `mnema site` writes', () => {
+    expect(existsSync(binary), 'build the packages first (pnpm build)').toBe(true);
+    const said = writeTheRecord({
+      root: ROOT,
+      out: join(out, 'ok'),
+      backLink: recordBackLink(FACTS),
+    }) as string;
+    expect(said).toMatch(/Wrote .*index\.html/);
+    const page = readFileSync(join(out, 'ok', 'index.html'), 'utf8');
+    expect(page).toContain('<html');
+    expect(page).toContain('<p><a href="/r/">Back</a></p>');
+  }, 60_000);
+
+  it('stops when one byte of the record was changed, and writes no page', () => {
+    const copy = join(out, 'copy');
+    mkdirSync(copy);
+    execFileSync('git', ['init', '-q', copy]);
+    cpSync(join(ROOT, '.mnema'), join(copy, '.mnema'), { recursive: true });
+    const tails = join(copy, '.mnema', 'tails');
+    const tail = readdirSync(tails)
+      .map((d) => join(tails, d, '000001.jsonl'))
+      .find(existsSync) as string;
+    const text = readFileSync(tail, 'utf8');
+    const at = text.indexOf('"title":"') + '"title":"'.length;
+    expect(at).toBeGreaterThan('"title":"'.length);
+    writeFileSync(tail, text.slice(0, at) + (text[at] === 'Z' ? 'Y' : 'Z') + text.slice(at + 1));
+    expect(() => writeTheRecord({ root: ROOT, cwd: copy, out: join(out, 'refused') })).toThrow(
+      /does not verify/,
+    );
+    expect(existsSync(join(out, 'refused', 'index.html'))).toBe(false);
+  }, 60_000);
+});

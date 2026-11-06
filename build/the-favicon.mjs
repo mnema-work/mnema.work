@@ -80,3 +80,6 @@ export async function faviconPng(sources, size = 64) {
   const svg = `${OPEN}<path fill="${paints.shadow}" d="${shadow}"/><path fill="${paints.letter}" d="${letter}"/></svg>`;
   return sharp(Buffer.from(svg)).resize(size, size).png().toBuffer();
 }
+
+/** The mark of a check of the docs, which does not build the product the wordmark is read from: a drawing with nothing in it. */
+export const emptyMarkSvg = (side) => `<svg xmlns="http://www.w3.org/2000/svg" width="${side}" height="${side}"/>\n`;

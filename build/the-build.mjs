@@ -21,7 +21,7 @@ import {
   verifyCommandOf,
   withoutWhatIsNotOnTheSite,
 } from './the-pages.mjs';
-import { faviconPng, faviconSvg, markSvg, theSources } from './the-favicon.mjs';
+import { emptyMarkSvg, faviconPng, faviconSvg, markSvg, theSources } from './the-favicon.mjs';
 import { hostsOf, installOf, MEASURED, measuredOf, verdictLinesOf } from './the-home.mjs';
 import { ACCENT, INK, PAGE, paletteCss } from './the-palette.mjs';
 import { tagOf } from './the-product.mjs';
@@ -42,7 +42,7 @@ export const WRITTEN = Object.freeze([
 ]);
 
 /** What the site is built from, read now: the checkout's tag, commit and packages say it, nothing is typed here. */
-export async function theFacts(root) {
+export async function theFacts(root, { check = false } = {}) {
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   const json = (path) => JSON.parse(readFileSync(join(root, path), 'utf8'));
   const { EXTENSION_NAME } = await import(pathToFileURL(join(root, 'packages/vscode/build/the-extension-name.mjs')).href);
@@ -51,13 +51,18 @@ export async function theFacts(root) {
     extensionPackage: json('packages/vscode/package.json'),
     extensionName: EXTENSION_NAME,
     sha,
-    tag: tagOf(root),
+    // A check has no release tag: its pages link to the commit it was run on.
+    tag: check ? sha : tagOf(root),
   });
 }
 
-/** Writes the pages, the pictures, the colour and the build's facts under this repository's `src/` and `public/`. */
-export async function prepare({ root, site = SITE }) {
-  const facts = await theFacts(root);
+/**
+ * Writes the pages, the pictures, the colour and the build's facts under this repository's `src/` and `public/`.
+ * With `check` the checkout may be at any commit and unbuilt: everything the docs and the home page read from files is
+ * read and fails as in a release build, and the verdict of the record, which needs the product built, is left out.
+ */
+export async function prepare({ root, site = SITE, check = false }) {
+  const facts = await theFacts(root, { check });
   const readme = readFileSync(join(root, 'README.md'), 'utf8');
   const names = readdirSync(join(root, 'docs')).filter((f) => f.endsWith('.md'));
   const docs = docNames(names.map((f) => `docs/${f}`));
@@ -106,7 +111,7 @@ export async function prepare({ root, site = SITE }) {
 
   // What the home page shows and does not say in its own words: counts, hosts, commands and the verdict, all read here.
   const hostsPage = readFileSync(join(root, 'docs/hosts.md'), 'utf8');
-  const verdict = theVerdictOfTheCommit({ root, sha: facts.sha, command: verifyCommandOf(readme) });
+  const verdict = check ? null : theVerdictOfTheCommit({ root, sha: facts.sha, command: verifyCommandOf(readme) });
   writeFileSync(
     into('src/generated/home.json'),
     `${JSON.stringify(
@@ -115,7 +120,7 @@ export async function prepare({ root, site = SITE }) {
         measuredUrl: `${facts.repoUrl}/tree/${facts.tag}/${MEASURED}`,
         ...hostsOf(readme),
         install: installOf({ readme, hostsPage }),
-        verdict: { command: verifyCommandOf(readme), lines: verdictLinesOf(verdict) },
+        verdict: { command: verifyCommandOf(readme), lines: verdict === null ? [] : verdictLinesOf(verdict) },
         links: {
           npm: facts.npmUrl,
           marketplace: `https://marketplace.visualstudio.com/items?itemName=${facts.extensionId}`,
@@ -139,13 +144,19 @@ export async function prepare({ root, site = SITE }) {
 
   writeFileSync(into('src/generated/theme.css'), themeCss({ ACCENT, PAGE, INK }));
   writeFileSync(into('src/generated/palette.css'), paletteCss());
-  const sources = await theSources(root);
-  writeFileSync(into('public/favicon.svg'), faviconSvg(sources));
-  writeFileSync(into('public/favicon.png'), await faviconPng(sources));
+  // The favicon and the mark are drawn from the wordmark in the product's BUILT code. A check does not build the product,
+  // so its mark is an empty drawing: the site it makes is never published.
+  const sources = check ? null : await theSources(root);
+  if (!check) {
+    writeFileSync(into('public/favicon.svg'), faviconSvg(sources));
+    writeFileSync(into('public/favicon.png'), await faviconPng(sources));
+  }
   // The domain the pages are served from, read by GitHub Pages from the published output.
   writeFileSync(into('public/CNAME'), `${new URL(SITE_URL).host}\n`);
   // The mark beside the name, in the docs' header and on the home page: the same letter as the favicon, in the paints of a theme.
-  for (const theme of ['dark', 'light']) writeFileSync(into(`src/assets/mark-${theme}.svg`), markSvg(sources, theme, 28));
+  for (const theme of ['dark', 'light']) {
+    writeFileSync(into(`src/assets/mark-${theme}.svg`), check ? emptyMarkSvg(28) : markSvg(sources, theme, 28));
+  }
   writeFileSync(into('src/generated/the-build.json'), `${JSON.stringify({ version: facts.version, tag: facts.tag, sha: facts.sha, repoUrl: facts.repoUrl })}\n`);
   return facts;
 }

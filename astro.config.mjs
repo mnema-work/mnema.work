@@ -3,13 +3,13 @@ import { defineConfig } from 'astro/config';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { theFacts } from './build/the-build.mjs';
-import { productRoot } from './build/the-product.mjs';
+import { isCheck, productRoot } from './build/the-product.mjs';
 import { SITE } from './build/the-site.mjs';
 import { copyOf, docNames, pitchOf, sidebarOf, withoutWhatIsNotOnTheSite } from './build/the-pages.mjs';
 
 // `build/build.mjs` hands this process the checkout it was given, as PRODUCT_DIR.
 const ROOT = productRoot();
-const facts = await theFacts(ROOT);
+const facts = await theFacts(ROOT, { check: isCheck() });
 const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
 const docs = docNames(readdirSync(join(ROOT, 'docs')).map((f) => `docs/${f}`));
 const microcopy = copyOf(readFileSync(join(SITE, 'copy.md'), 'utf8'));

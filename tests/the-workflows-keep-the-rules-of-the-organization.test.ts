@@ -6,6 +6,8 @@
  *  - the workflow declares its `permissions` at the top, and each job declares its own;
  *  - no step reads a `secrets.` context, and no job is handed a token of its own;
  *  - the job that deploys has `pages: write` and `id-token: write` and no other permission, no `checkout` and no `run`;
+ *  - no step passes `--check` to the build and no `env` sets `SITE_CHECK`: a check build exits 0 with no /record/ and an
+ *    empty mark, so it must never be what is published;
  *  - the job that decides what is built asks the product with `git ls-remote` and a public address, with no token.
  *
  * NOT HELD: that the allowlist in the organization's settings says the same (that is a setting, not a file).
@@ -93,5 +95,19 @@ describe('the workflows', () => {
     expect(ALLOWED.test(`someone/else@${'a'.repeat(40)}`)).toBe(false);
     expect(ALLOWED.test(`actions/checkout@${'a'.repeat(40)}`)).toBe(true);
     expect(usesOf(`jobs:\n  deploy:\n    steps:\n      - uses: actions/checkout@${'a'.repeat(40)}\n`)).toHaveLength(1);
+  });
+
+  it('never run the build in check mode: no step passes --check and no env sets SITE_CHECK', () => {
+    const slips = (text: string): string[] =>
+      code(text)
+        .split('\n')
+        .filter((line) => /--check\b|SITE_CHECK/.test(line));
+    for (const file of files) expect(slips(read(file)), file).toEqual([]);
+    // The guard sees the slip: the publishing step with the flag put into it.
+    const site = read('site.yml');
+    const built = 'node build/build.mjs --from product';
+    expect(site).toContain(built);
+    expect(slips(site.replace(built, `${built} --check`))).toEqual([`        run: ${built} --check`]);
+    expect(slips(site.replace('permissions:', 'env:\n  SITE_CHECK: "1"\npermissions:'))).toEqual(['  SITE_CHECK: "1"']);
   });
 });

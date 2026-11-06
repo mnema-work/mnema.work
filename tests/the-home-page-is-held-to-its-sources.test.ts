@@ -169,7 +169,11 @@ when('the built home page', () => {
       ...claude.map((c) => `$ ${c}`),
       `# in VS Code: ${extension}`,
     ]);
-    expect(claude).toEqual(['claude plugin marketplace add felipesauer/mnema', 'claude plugin install mnema@mnema']);
+    // The lines are the checkout's own (the page shows exactly `claude`, above); here only their shape is held, so the
+    // case is green at any release of the product, whoever owns the repository the marketplace is added from.
+    expect(claude).toHaveLength(2);
+    expect(claude[0]).toMatch(/^claude plugin marketplace add [\w.-]+\/[\w.-]+$/);
+    expect(claude[1]).toBe('claude plugin install mnema@mnema');
   });
 
   it('copies in the click, with the clipboard API and a fallback that selects the text', () => {

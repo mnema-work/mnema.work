@@ -77,7 +77,7 @@ const MUST = process.env.THE_SITE_MUST_BE_BUILT === '1';
 const when = BUILT ? describe : describe.skip;
 
 const BASE = '';
-const GITHUB = 'https://github.com/felipesauer/mnema';
+const GITHUB = 'https://github.com/mnema-work/mnema';
 
 /**
  * What the landing's test holds a block to: a short block (a heading, a label) is a few words that any

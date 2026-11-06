@@ -31,7 +31,8 @@ export default defineConfig({
       customCss: ['./src/generated/theme.css', './src/styles/site.css'],
       components: { Footer: './src/components/Footer.astro', Hero: './src/components/Hero.astro' },
       head: [
-        // Browsers that draw no SVG in a tab take the PNG.
+        // The adaptive SVG is the icon; the PNG is only for browsers that draw no SVG in a tab.
+        { tag: 'link', attrs: { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml', sizes: 'any' } },
         { tag: 'link', attrs: { rel: 'icon', href: '/favicon.png', type: 'image/png', sizes: '64x64' } },
         { tag: 'meta', attrs: { property: 'og:image', content: card } },
         { tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },

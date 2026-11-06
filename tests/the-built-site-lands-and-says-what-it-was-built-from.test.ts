@@ -399,6 +399,21 @@ when('the built site', () => {
     expect(png.readUInt32BE(16), 'width').toBe(64);
   });
 
+  it('links the adaptive SVG as the icon of every page, ahead of the PNG fallback, and that SVG is the generated file', async () => {
+    const generated = faviconSvg(await theSources(ROOT));
+    // /record/ is the page the binary writes, and it declares no icon.
+    const own = pages.filter((p) => p !== 'record/index.html');
+    expect(own.length, 'the pages swept').toBeGreaterThan(10);
+    for (const page of own) {
+      const icons = [...html(page).matchAll(/<link rel="icon"[^>]*>/g)].map((m) => m[0]);
+      const svg = icons.findIndex((l) => /href="\/favicon\.svg"/.test(l) && /type="image\/svg\+xml"/.test(l));
+      const png = icons.findIndex((l) => /href="\/favicon\.png"/.test(l));
+      expect(svg, `${page}: the SVG is not linked as an icon`).toBeGreaterThanOrEqual(0);
+      expect(png, `${page}: the PNG fallback is not linked`).toBeGreaterThan(svg);
+    }
+    expect(readText(join(DIST, 'favicon.svg')), 'the linked SVG is the generated one').toBe(generated);
+  });
+
   it('carries the calculated theme in a rule of no layer, so Starlight does not take it back', async () => {
     const { ACCENT } = (await import(
       pathToFileURL(join(ROOT, '.github/the-front-page/accent.mjs')).href

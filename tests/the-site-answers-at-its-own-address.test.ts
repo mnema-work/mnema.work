@@ -102,7 +102,8 @@ when('the built site', () => {
     // /record/ is the page the binary writes, byte for byte, and it declares no icon (it did not before either).
     for (const page of pages.filter((p) => p !== 'record/index.html')) {
       const html = readText(join(DIST, page));
-      expect(html, page).toContain('<link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml"/>');
+      const icons = [...html.matchAll(/<link rel="icon"[^>]*>/g)].map((m) => m[0]);
+      expect(icons[0], `${page}: the SVG is the first icon`).toMatch(/href="\/favicon\.svg"[^>]*type="image\/svg\+xml"|type="image\/svg\+xml"[^>]*href="\/favicon\.svg"/);
       expect(html, page).toContain('<link rel="icon" href="/favicon.png" type="image/png" sizes="64x64"/>');
     }
     for (const file of ['favicon.svg', 'favicon.png']) expect(readdirSync(DIST), file).toContain(file);

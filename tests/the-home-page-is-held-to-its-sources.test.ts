@@ -20,6 +20,7 @@
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
+import { runInNewContext } from 'node:vm';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -224,6 +225,12 @@ when('the built home page', () => {
     // Every animation of the page is on the two classes of the chain, and nowhere else.
     const animated = [...css.matchAll(/([^{}]+)\{[^{}]*\banimation\s*:[ \t]*(?![ \t]|none)[^;}]+[;}]/g)].map((m) => (m[1] ?? '').trim());
     expect(animated.sort(), 'the rules that animate').toEqual(['.home .link', '.home .lit']);
+    // Nothing that holds text fades: the animated elements are the chain's links (no text) and its last block (text),
+    // so no keyframe of the page animates an opacity.
+    for (const frames of css.matchAll(/@keyframes\s+[\w-]+\s*\{([\s\S]*?\})\s*\}/g)) {
+      expect(frames[1], 'a keyframe animates opacity').not.toMatch(/\bopacity\s*:/);
+    }
+    expect(builtCss(), 'no animated opacity in the built style').not.toMatch(/@keyframes[^{]*\{[^@]*opacity\s*:/);
     expect(css, 'no transition anywhere').not.toMatch(/\btransition\s*:/);
     expect(css, 'no scroll behaviour set').not.toMatch(/scroll-behavior\s*:\s*smooth/);
     const reduced = /@media \(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?\})\s*\}/.exec(css)?.[1] ?? '';
@@ -334,6 +341,34 @@ when('the docs take the palette, and the way back to the home page', () => {
     const provider = /<script>\s*window\.StarlightThemeProvider[\s\S]*?<\/script>/.exec(html)?.[0] ?? '';
     expect(provider, 'the theme provider is on the page').not.toBe('');
     expect(provider, 'it does not ask the system').not.toMatch(/matchMedia|prefers-color-scheme/);
+  });
+
+  it('open dark on a first visit whatever the system says, and keep a choice the reader made', () => {
+    const html = docs();
+    const provider = /<script>\s*(window\.StarlightThemeProvider[\s\S]*?)<\/script>/.exec(html)?.[1] ?? '';
+    expect(provider, 'the theme provider is on the page').not.toBe('');
+    // The script that runs before the page paints, with a system that says light and a reader who has chosen nothing.
+    const themeAfter = (stored: string | null): string => {
+      const doc = { documentElement: { dataset: {} as Record<string, string> }, querySelectorAll: () => [], querySelector: () => null };
+      runInNewContext(provider, {
+        window: { matchMedia: () => ({ matches: true }) },
+        localStorage: { getItem: () => stored },
+        document: doc,
+      });
+      return doc.documentElement.dataset.theme ?? '';
+    };
+    expect(themeAfter(null), 'nothing stored, system light').toBe('dark');
+    expect(themeAfter(''), 'auto, system light').toBe('dark');
+    expect(themeAfter('light'), 'the reader chose light').toBe('light');
+    expect(themeAfter('dark'), 'the reader chose dark').toBe('dark');
+    // And no script of the docs asks the system afterwards (the selector's own script did, and put light back).
+    const scripts = [
+      html,
+      ...readdirSync(join(DIST, '_astro'))
+        .filter((f) => f.endsWith('.js'))
+        .map((f) => readText(join(DIST, '_astro', f))),
+    ].join('\n');
+    expect(scripts, 'a script reads the system colour scheme').not.toMatch(/matchMedia\(\s*[`'"]\(prefers-color-scheme/);
   });
 
   it('set the headings in the mono and the text in the sans, as the home page does', () => {

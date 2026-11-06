@@ -94,7 +94,11 @@ body.home {
   background-size: 10px 2px; animation: flow 1.6s linear infinite;
 }
 .home .lit { animation: pulse 2.4s ease-in-out infinite; }
-@keyframes pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+/* The checkpoint's border and glow pulse; its text is never faded. */
+@keyframes pulse {
+  0%, 100% { border-color: var(--mint-line); box-shadow: 0 0 0 0 transparent; }
+  50% { border-color: var(--mint); box-shadow: 0 0 16px 0 var(--mint-line); }
+}
 @keyframes flow { from { background-position: 0 0; } to { background-position: 40px 0; } }
 @media (prefers-reduced-motion: reduce) {
   .home .link, .home .lit { animation: none; }

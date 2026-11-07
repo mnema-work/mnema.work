@@ -41,13 +41,19 @@ export function tracked(...patterns: string[]): string[] {
 export const head = (): string =>
   execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
 
-/** Every `.html` under a directory, as a path relative to it. */
-export function htmlFiles(dir: string, base = dir): string[] {
+/** Whether a built file is only the page that sends a reader to the address a page moved to (Astro's redirect page). */
+export const isARedirectPage = (path: string): boolean => readFileSync(path, 'utf8').startsWith('<!doctype html><title>Redirecting to:');
+
+/**
+ * Every page `.html` under a directory, as a path relative to it. The redirect pages of the addresses that moved
+ * (`build/the-moved.mjs`) are not pages of the site, so they are left out; `htmlFiles(dir, dir, true)` lists only them.
+ */
+export function htmlFiles(dir: string, base = dir, redirects = false): string[] {
   const out: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...htmlFiles(path, base));
-    else if (entry.name.endsWith('.html')) out.push(path.slice(base.length + 1));
+    if (entry.isDirectory()) out.push(...htmlFiles(path, base, redirects));
+    else if (entry.name.endsWith('.html') && isARedirectPage(path) === redirects) out.push(path.slice(base.length + 1));
   }
   return out.sort();
 }

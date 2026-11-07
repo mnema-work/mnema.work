@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { theFacts } from './build/the-build.mjs';
 import { isCheck, productRoot } from './build/the-product.mjs';
 import { SITE } from './build/the-site.mjs';
+import { redirectsFor } from './build/the-moved.mjs';
 import { copyOf, docNames, pitchOf, sidebarOf, withoutWhatIsNotOnTheSite } from './build/the-pages.mjs';
 
 // `build/build.mjs` hands this process the checkout it was given, as PRODUCT_DIR.
@@ -21,6 +22,8 @@ const { title: cardAlt } = pitchOf(withoutWhatIsNotOnTheSite(readme, 'README.md'
 
 export default defineConfig({
   site: facts.siteUrl,
+  // The docs addresses that moved keep answering, with a page that sends the reader on (build/the-moved.mjs).
+  redirects: redirectsFor(docs),
   integrations: [
     starlight({
       title: 'mnema',

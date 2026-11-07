@@ -5,6 +5,7 @@
  *  - every `uses:` names an action owned by GitHub (`actions/`) or `pnpm/action-setup`, at a full 40-character commit SHA;
  *  - the workflow declares its `permissions` at the top, and each job declares its own;
  *  - no step reads a `secrets.` context, and no job is handed a token of its own;
+ *  - only the job that deploys may hold a `write` permission, and every checkout keeps no credentials;
  *  - the job that deploys has `pages: write` and `id-token: write` and no other permission, no `checkout` and no `run`;
  *  - no step passes `--check` to the build and no `env` sets `SITE_CHECK`: a check build exits 0 with no /record/ and an
  *    empty mark, so it must never be what is published;
@@ -95,6 +96,28 @@ describe('the workflows', () => {
     expect(ALLOWED.test(`someone/else@${'a'.repeat(40)}`)).toBe(false);
     expect(ALLOWED.test(`actions/checkout@${'a'.repeat(40)}`)).toBe(true);
     expect(usesOf(`jobs:\n  deploy:\n    steps:\n      - uses: actions/checkout@${'a'.repeat(40)}\n`)).toHaveLength(1);
+  });
+
+  it('write nothing outside the deploy job, and keep no credentials after a checkout', () => {
+    const writes = (text: string): string[] =>
+      code(text)
+        .split('\n')
+        .filter((line) => /^\s+[\w-]+: write\s*$/.test(line));
+    for (const file of files) {
+      const outsideDeploy = jobsOf(read(file))
+        .filter(([name]) => !(file === 'site.yml' && name === 'deploy'))
+        .flatMap(([, job]) => writes(job));
+      expect(outsideDeploy, `${file} writes outside the deploy job`).toEqual([]);
+      expect(writes(code(read(file)).split(/^jobs:\n/m)[0] ?? ''), `${file} writes at the top`).toEqual([]);
+      const checkouts = [...code(read(file)).matchAll(/uses: actions\/checkout@[^\n]*\n((?:\s+with:\n(?:\s+[\w-]+: .*\n?)*)?)/g)];
+      for (const m of checkouts) expect(m[1], `${file}: a checkout keeps credentials`).toMatch(/persist-credentials: false/);
+    }
+    // The ruler sees the slip: the scanners file with a write permission put into its job.
+    const scan = read('scanners.yml');
+    expect(writes(scan)).toEqual([]);
+    expect(jobsOf(scan.replace('      contents: read\n    steps:', '      contents: write\n    steps:')).flatMap(([, j]) => writes(j))).toEqual([
+      '      contents: write',
+    ]);
   });
 
   it('never run the build in check mode: no step passes --check and no env sets SITE_CHECK', () => {

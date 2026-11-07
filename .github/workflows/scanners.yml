@@ -1,0 +1,62 @@
+name: Scanners
+
+# WHAT THIS IS. `osv-scanner` reads `package-lock.json`, the lockfile of the site's own dependencies, for a dependency
+# with a published advisory. It does not run the site and it builds nothing.
+#
+# THE LOCKFILE ALSO GETS A WEEKLY READING. An advisory is published against a dependency that nobody touched, and no
+# push or pull request would then ask again. The `schedule` runs it on Mondays, from the default branch. A finding on a
+# scheduled run fails the job and shows in the Actions tab; it opens nothing.
+#
+# IT RUNS ON A PULL REQUEST AND ON `main`, and it is not one of the checks a pull request must carry: an advisory
+# published tomorrow against a dependency nobody touched would otherwise stop an unrelated merge. A red here is read,
+# not waived.
+#
+# THE TOOL IS THE RELEASE BINARY, pinned by version and by SHA-256 below, not an action: the organization runs only
+# actions owned by GitHub (and pnpm/action-setup), and a scanner that needs an account is one more thing that stops
+# running. Moving to a newer release is a diff of two lines (the version and the hash), taken from the release's own
+# checksums.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Mondays, 05:00 UTC.
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OSV_SCANNER_VERSION: 2.7.0
+  OSV_SCANNER_SHA256: 160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b
+
+jobs:
+  dependencies:
+    name: dependencies with an advisory (osv-scanner)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install osv-scanner at the pinned release
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64" \
+            -o osv-scanner
+          echo "${OSV_SCANNER_SHA256}  osv-scanner" | sha256sum -c --strict
+          chmod +x osv-scanner
+
+      - name: Read the lockfile
+        run: ./osv-scanner scan source --lockfile package-lock.json

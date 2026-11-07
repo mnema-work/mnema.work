@@ -53,6 +53,9 @@ The two addresses the build is made around are in `build/the-site.mjs` and nowhe
 product for its latest release tag (`git ls-remote`, no token): it deploys only when the version the live site says it was
 built from is not that tag. The deploy job holds `pages: write` and `id-token: write` and nothing else.
 
+`.github/workflows/scanners.yml` reads `package-lock.json` against OSV (`osv-scanner`, the pinned release binary) on every
+push and pull request and every Monday. It is not a required check: a red is read, not waived.
+
 ## Licence
 
 Apache-2.0, as the product: see `LICENSE` and `NOTICE`.

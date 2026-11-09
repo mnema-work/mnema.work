@@ -31,7 +31,8 @@ release, and stops on what a release build stops on for them; it does not write 
 
 ## What the build does
 
-1. Writes the pages of `docs/`, the table of contents at `/docs/` and the 404 from the checkout (`build/the-build.mjs`,
+1. Writes the pages of `docs/` (folders included: `docs/<folder>/<page>.md` is at `/docs/<folder>/<page>/`, and a README item
+   that points at an index page in a folder is a group of the sidebar), the table of contents at `/docs/` and the 404 from the checkout (`build/the-build.mjs`,
    `build/the-pages.mjs`), with the links rewritten to where they land, and the facts the home page shows (the measured
    counts, the hosts and their rungs, the install commands, the verdict of the record), read from the same checkout
    (`build/the-home.mjs`). The home page itself, `/`, is `src/pages/index.astro`: its words are the page's, and a test

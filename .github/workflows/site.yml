@@ -5,7 +5,7 @@ name: Site
 # the presentation. What the product has on its main branch and has not released is never on the site.
 #
 # WHEN IT RUNS
-#   pull request: builds, and holds the built pages to their sources. Deploys nothing.
+#   pull request (to main, or to launch): builds, and holds the built pages to their sources. Deploys nothing.
 #   push to main: builds and deploys (a change to the presentation or to the build).
 #   every day, and by hand: asks the product repository for its latest release tag with `git ls-remote` (a public
 #     repository: no token) and compares it with the version the LIVE site says it was built from, in the footer of its
@@ -20,7 +20,7 @@ name: Site
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, launch]
   push:
     branches: [main]
   schedule:

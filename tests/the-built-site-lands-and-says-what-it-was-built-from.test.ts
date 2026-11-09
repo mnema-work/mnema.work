@@ -175,7 +175,9 @@ when('the built site', () => {
 
   it('has a page for each page of docs/, and none that is not one', () => {
     // /docs/ itself (`docs/index.html`) is the table of contents the build writes beside them.
-    const built = pages.filter((p) => p.startsWith('docs/') && p !== 'docs/index.html').map((p) => p.split('/')[1]);
+    const built = pages
+      .filter((p) => p.startsWith('docs/') && p !== 'docs/index.html')
+      .map((p) => p.slice('docs/'.length, -'/index.html'.length));
     expect([...built].sort()).toEqual(names);
     expect(pages, '/docs/ is a page').toContain('docs/index.html');
     expect(names.length).toBeGreaterThan(10);

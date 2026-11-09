@@ -1,21 +1,21 @@
 import starlight from '@astrojs/starlight';
 import { defineConfig } from 'astro/config';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { theFacts } from './build/the-build.mjs';
+import { docsOf, theFacts } from './build/the-build.mjs';
 import { isCheck, productRoot } from './build/the-product.mjs';
 import { SITE } from './build/the-site.mjs';
 import { redirectsFor } from './build/the-moved.mjs';
-import { copyOf, docNames, pitchOf, sidebarOf, withoutWhatIsNotOnTheSite } from './build/the-pages.mjs';
+import { copyOf, pitchOf, sidebarOf, withoutWhatIsNotOnTheSite } from './build/the-pages.mjs';
 
 // `build/build.mjs` hands this process the checkout it was given, as PRODUCT_DIR.
 const ROOT = productRoot();
 const facts = await theFacts(ROOT, { check: isCheck() });
 const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
-const docs = docNames(readdirSync(join(ROOT, 'docs')).map((f) => `docs/${f}`));
+const { names: docs, read } = docsOf(ROOT);
 const microcopy = copyOf(readFileSync(join(SITE, 'copy.md'), 'utf8'));
 // The record page goes inside the group of the README that holds the verifier, under the label `copy.md` gives it.
-const sidebar = sidebarOf({ readme, facts, docs, record: { label: microcopy.get('record'), link: '/record/' } });
+const sidebar = sidebarOf({ readme, facts, docs, read, record: { label: microcopy.get('record'), link: '/record/' } });
 // The social card: one picture for every page, at its address on the published site, and the README's line as its alt.
 const card = `${facts.siteUrl}/og.png`;
 const { title: cardAlt } = pitchOf(withoutWhatIsNotOnTheSite(readme, 'README.md'));

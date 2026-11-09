@@ -3,7 +3,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, posix } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   copyOf,
@@ -41,6 +41,30 @@ export const WRITTEN = Object.freeze([
   'public',
 ]);
 
+/** Every Markdown file under `docs/` of the checkout, folders included, as paths from `docs/` (`reference/cli/init.md`), sorted. */
+export function docFiles(root) {
+  const under = (dir) =>
+    readdirSync(join(root, 'docs', dir), { withFileTypes: true }).flatMap((entry) => {
+      const path = posix.join(dir, entry.name);
+      if (entry.isDirectory()) return under(path);
+      return entry.name.endsWith('.md') ? [path] : [];
+    });
+  return under('').sort();
+}
+
+/**
+ * The pages of `docs/` of the checkout: their names (a page in a folder is `<folder>/<page>`) and `read`, the text of one
+ * by its name as the site holds it, which is what an index page of a folder is read as.
+ */
+export function docsOf(root) {
+  const files = docFiles(root);
+  return {
+    files,
+    names: docNames(files.map((f) => `docs/${f}`)),
+    read: (name) => withoutWhatIsNotOnTheSite(readFileSync(join(root, 'docs', `${name}.md`), 'utf8'), `docs/${name}.md`),
+  };
+}
+
 /** What the site is built from, read now: the checkout's tag, commit and packages say it, nothing is typed here. */
 export async function theFacts(root, { check = false } = {}) {
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
@@ -64,8 +88,7 @@ export async function theFacts(root, { check = false } = {}) {
 export async function prepare({ root, site = SITE, check = false }) {
   const facts = await theFacts(root, { check });
   const readme = readFileSync(join(root, 'README.md'), 'utf8');
-  const names = readdirSync(join(root, 'docs')).filter((f) => f.endsWith('.md'));
-  const docs = docNames(names.map((f) => `docs/${f}`));
+  const { files, names: docs, read } = docsOf(root);
 
   for (const path of WRITTEN) rmSync(join(site, path), { recursive: true, force: true });
   const into = (path) => {
@@ -73,7 +96,7 @@ export async function prepare({ root, site = SITE, check = false }) {
     return join(site, path);
   };
 
-  for (const file of names) {
+  for (const file of files) {
     const name = file.slice(0, -3);
     const markdown = readFileSync(join(root, 'docs', file), 'utf8');
     writeFileSync(into(`src/content/docs/docs/${file}`), pageOf({ name, markdown, facts, docs }));
@@ -90,7 +113,7 @@ export async function prepare({ root, site = SITE, check = false }) {
   };
 
   // /docs/ itself: the table of contents, from the README's groups and the record page.
-  const sidebar = sidebarOf({ readme, facts, docs, record: { label: copy('record'), link: '/record/' } });
+  const sidebar = sidebarOf({ readme, facts, docs, read, record: { label: copy('record'), link: '/record/' } });
   writeFileSync(
     into('src/content/docs/docs/index.md'),
     docsIndexOf({ sidebar, title: copy('docs-title'), description: copy('docs-description') }),

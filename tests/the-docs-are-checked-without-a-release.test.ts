@@ -7,6 +7,8 @@
  *     changed is still refused, and a build that is not a check still refuses an untagged checkout.
  *   - A CHECK BUILDS THE PAGES OF `docs/` WITH THE SAME REWRITING AS A RELEASE: one page for each file, and it adds
  *     nothing a release adds (`/record/`, `og.png`, `llms.txt`, `robots.txt`), because those need the product built.
+ *   - A PAGE IN A FOLDER OF `docs/` IS BUILT AT ITS FOLDER'S ADDRESS, AND THE FOLDER IS A GROUP OF THE SIDEBAR when the README
+ *     points at its index page.
  *   - A CHECK FAILS ON WHAT A RELEASE BUILD FAILS ON FOR THE DOCS: a page whose link leaves the repository stops it,
  *     with the page and the target in what it prints.
  *
@@ -40,6 +42,7 @@ function anUnreleasedProduct(change?: (dir: string) => void): string {
   git(scratch, '-c', 'advice.detachedHead=false', 'clone', '-q', '--no-hardlinks', ROOT, dir);
   change?.(dir);
   git(dir, 'add', '-u');
+  git(dir, 'add', 'docs');
   git(dir, 'commit', '-q', '--allow-empty', '-m', 'an unreleased commit');
   return dir;
 }
@@ -106,6 +109,27 @@ describe('the check of the docs', () => {
     for (const absent of ['record', 'og.png', 'llms.txt', 'robots.txt', 'fonts-licence.txt']) {
       expect(existsSync(join(site, 'dist', absent)), absent).toBe(false);
     }
+  }, 120_000);
+
+  it('builds a page in a folder of docs/ at its address, and the folder as a group of the sidebar', () => {
+    const product = anUnreleasedProduct((dir) => {
+      mkdirSync(join(dir, 'docs/reference/cli'), { recursive: true });
+      writeFileSync(join(dir, 'docs/reference/commands.md'), '# The commands\n\nEvery command.\n\n- [mnema init](cli/init.md)\n- [mnema verify](cli/verify.md)\n');
+      writeFileSync(join(dir, 'docs/reference/cli/init.md'), '# mnema init\n\nStarts a record. See [verify](verify.md).\n');
+      writeFileSync(join(dir, 'docs/reference/cli/verify.md'), '# mnema verify\n\nChecks a record.\n');
+      const readme = join(dir, 'README.md');
+      writeFileSync(readme, readFileSync(readme, 'utf8').replace('- **Verify.**', '- **Reference.** [The commands](docs/reference/commands.md)\n- **Verify.**'));
+    });
+    const built = check(product);
+    expect(built.status, built.stdout + built.stderr).toBe(0);
+    for (const name of ['reference/commands', 'reference/cli/init', 'reference/cli/verify']) {
+      expect(existsSync(join(site, 'dist/docs', name, 'index.html')), name).toBe(true);
+    }
+    const sidebar = readFileSync(join(site, 'dist/docs/install/index.html'), 'utf8');
+    for (const link of ['/docs/reference/commands/', '/docs/reference/cli/init/', '/docs/reference/cli/verify/']) {
+      expect(sidebar, link).toContain(`href="${link}"`);
+    }
+    expect(readFileSync(join(site, 'dist/docs/reference/cli/init/index.html'), 'utf8')).toContain('href="/docs/reference/cli/verify/"');
   }, 120_000);
 
   it('fails, and says which page and which link, when a page of docs/ links out of the repository', () => {

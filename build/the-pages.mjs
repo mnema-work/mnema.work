@@ -122,7 +122,7 @@ export function whereItLands(target, from, facts, docs) {
   const fragment = hash === -1 ? '' : target.slice(hash);
   const resolved = posix.normalize(posix.join(posix.dirname(from), path));
   if (resolved.startsWith('..')) throw new Error(`${from}: ${target} leaves the repository`);
-  const page = /^docs\/([^/]+)\.md$/.exec(resolved);
+  const page = /^docs\/(.+)\.md$/.exec(resolved);
   if (page && docs.has(page[1])) return `${facts.base}/docs/${page[1]}/${fragment}`;
   const asset = /^docs\/assets\/([^/]+)$/.exec(resolved);
   if (asset) return `${facts.base}/assets/${asset[1]}${fragment}`;
@@ -323,31 +323,78 @@ export function recordBackLink(facts) {
   return `${facts.base}/`;
 }
 
-/** The group of the README's Docs that holds the verifier, and the item the record page goes right after. */
-export const RECORD_GROUP = 'Verify';
+/** The page the record page goes right after: the one that describes the verifier, found by its label in whichever group holds it. */
 export const RECORD_AFTER = 'The page that verifies itself';
 
+/** The `](target)` links of a page outside code, with their text, in order. */
+function linksOf(markdown) {
+  const links = [];
+  outsideFences(markdown, (text) => {
+    for (const piece of text.split(/(`+[^`\n]*?`+)/).filter((_p, i) => i % 2 === 0)) {
+      for (const m of piece.matchAll(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)) links.push({ label: m[1], target: m[2] });
+    }
+    return text;
+  });
+  return links;
+}
+
 /**
- * The sidebar: the README's groups, a page of `docs/` as the site's page and anything else on GitHub. The record page
- * (`record`: its label and its address) goes inside the group that holds the verifier, right after the page that
- * describes it. A README without that group or that item stops the build, so the page is never hung at the end.
+ * The group a folder of `docs/` makes in the sidebar, from its index page: a README item that points at
+ * `docs/<folder>/<page>.md` is the index, and the group is the index page itself and then the pages of the folders its
+ * links lead to, in the order it lists them, each under the words of the link. A page the index lists and `docs/` does not
+ * hold, and a page in one of those folders that the index does not list, stop the build: a page is never in the folder and
+ * out of the sidebar, nor in the sidebar and out of the site.
  */
-export function sidebarOf({ readme, facts, docs, record }) {
+function groupOfTheFolder({ item, name, facts, docs, read }) {
+  if (read === undefined) throw new Error(`the README points at docs/${name}.md, an index page in a folder, and no way to read it was given`);
+  const from = `docs/${name}.md`;
+  const pages = [];
+  for (const link of linksOf(read(name))) {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(link.target) || link.target.startsWith('#') || link.target.startsWith('/')) continue;
+    const resolved = posix.normalize(posix.join(posix.dirname(from), link.target.split('#')[0]));
+    const page = /^docs\/(.+)\.md$/.exec(resolved)?.[1];
+    if (page === undefined || page === name || page.indexOf('/') === -1) continue;
+    if (!docs.has(page)) throw new Error(`${from} lists ${page}, which docs/ does not hold`);
+    if (!pages.some((p) => p.name === page)) pages.push({ name: page, label: link.label });
+  }
+  if (pages.length === 0) throw new Error(`${from} is an index page in a folder and lists no page of one`);
+  const listed = new Set(pages.map((p) => p.name));
+  for (const folder of new Set(pages.map((p) => posix.dirname(p.name)))) {
+    for (const other of docs) {
+      if (posix.dirname(other) === folder && !listed.has(other)) {
+        throw new Error(`docs/${other}.md is in the folder of ${from} and the index does not list it`);
+      }
+    }
+  }
+  const at = (page) => `/docs/${page}/`;
+  return {
+    label: item.label,
+    items: [{ label: item.label, link: at(name) }, ...pages.map((p) => ({ label: p.label, link: at(p.name) }))],
+  };
+}
+
+/**
+ * The sidebar: the README's groups, a page of `docs/` as the site's page and anything else on GitHub. An item that
+ * points at an index page in a folder of `docs/` is a group of its own (`groupOfTheFolder`; `read` gives the text of a page
+ * of `docs/` by its name). The record page (`record`: its label and its address) goes inside the group that holds the
+ * page that describes the verifier, right after it. A README without that page stops the build, so the page is never hung at the end.
+ * @param {{ readme: string, facts: any, docs: Set<string>, record?: { label: string, link: string }, read?: (name: string) => string }} options
+ */
+export function sidebarOf({ readme, facts, docs, record, read }) {
   const groups = groupsOf(readme).map((g) => ({
     label: g.label,
     items: g.items.map((item) => {
+      const index = /^docs\/(.+\/.+)\.md$/.exec(posix.normalize(item.target.split('#')[0]))?.[1];
+      if (index !== undefined && docs.has(index)) return groupOfTheFolder({ item, name: index, facts, docs, read });
       const there = whereItLands(item.target, 'README.md', facts, docs);
       const internal = there.startsWith(`${facts.base}/`) ? there.slice(facts.base.length) : null;
       return { label: item.label, link: internal ?? there };
     }),
   }));
   if (record === undefined) return groups;
-  const group = groups.find((g) => g.label === RECORD_GROUP);
-  const at = group?.items.findIndex((item) => item.label === RECORD_AFTER) ?? -1;
-  if (group === undefined || at === -1) {
-    throw new Error(`the README's Docs has no "${RECORD_AFTER}" in its "${RECORD_GROUP}" group, and the record page goes after it`);
-  }
-  group.items.splice(at + 1, 0, record);
+  const group = groups.find((g) => g.items.some((item) => item.label === RECORD_AFTER && item.link !== undefined));
+  if (group === undefined) throw new Error(`the README's Docs has no "${RECORD_AFTER}" in any group, and the record page goes after it`);
+  group.items.splice(group.items.findIndex((item) => item.label === RECORD_AFTER) + 1, 0, record);
   return groups;
 }
 
@@ -358,13 +405,15 @@ export function sidebarOf({ readme, facts, docs, record }) {
  */
 export function docsIndexOf({ sidebar, title, description }) {
   const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\n---\n\n`;
-  const groups = sidebar.map((g) => `## ${g.label}\n\n${g.items.map((i) => `- [${i.label}](${i.link})`).join('\n')}\n`);
+  const list = (items, indent) =>
+    items.map((i) => (i.items === undefined ? `${indent}- [${i.label}](${i.link})` : `${indent}- ${i.label}\n${list(i.items, `${indent}  `)}`)).join('\n');
+  const groups = sidebar.map((g) => `## ${g.label}\n\n${list(g.items, '')}\n`);
   return front + groups.join('\n');
 }
 
-/** The pages `docs/` holds, by name without `.md`. */
+/** The pages `docs/` holds, by path without `.md`: a page in a folder is named `<folder>/<page>`. */
 export function docNames(files) {
-  return new Set(files.filter((f) => /^docs\/[^/]+\.md$/.test(f)).map((f) => f.slice(5, -3)));
+  return new Set(files.filter((f) => /^docs\/.+\.md$/.test(f)).map((f) => f.slice(5, -3)));
 }
 
 const channelsOf = (hex) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));

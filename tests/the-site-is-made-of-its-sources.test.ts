@@ -228,7 +228,11 @@ describe('the pages the build writes for this tree', () => {
   afterAll(() => rmSync(site, { recursive: true, force: true }));
 
   const docsFiles = (): string[] => tracked('docs/*.md').map((f) => f.slice(5));
-  const written = (): string[] => readdirSync(join(site, 'src/content/docs/docs')).sort();
+  const writtenUnder = (dir: string): string[] =>
+    readdirSync(join(site, 'src/content/docs/docs', dir), { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? writtenUnder(`${dir}${e.name}/`) : [`${dir}${e.name}`],
+    );
+  const written = (): string[] => writtenUnder('').sort();
   const read = (path: string): string => readFileSync(join(site, path), 'utf8');
 
   it('are the pages of docs/: one for each file git holds, and none besides', () => {
@@ -295,7 +299,7 @@ describe('the pages the build writes for this tree', () => {
         } else if (target.startsWith(`${facts.base}/docs/`)) {
           seen.site++;
           expect(
-            names.has(target.slice(`${facts.base}/docs/`.length).split('/')[0] as string),
+            names.has((target.slice(`${facts.base}/docs/`.length).split('#')[0] as string).replace(/\/$/, '')),
             `${page}: ${target}`,
           ).toBe(true);
         } else if (target.startsWith(`${facts.base}/recordings/`)) {
@@ -684,12 +688,12 @@ describe('the verdict the landing shows is the one of the committed tree', () =>
   });
 });
 
-describe('the record page is in the sidebar, inside the group of the README that holds the verifier', () => {
+describe('the record page is in the sidebar, inside the group of the README that holds the page that verifies itself', () => {
   const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
   const docs = new Set(tracked('docs/*.md').map((f) => f.slice(5, -3)));
   const record = { label: 'Record', link: '/record/' };
 
-  it('puts it right after the page that verifies itself, in the group Verify, and nowhere else', () => {
+  it('puts it right after the page that verifies itself, in the group that holds it, and nowhere else', () => {
     const sidebar = sidebarOf({ readme, facts: FACTS, docs, record }) as {
       label: string;
       items: { label: string; link: string }[];
@@ -708,11 +712,8 @@ describe('the record page is in the sidebar, inside the group of the README that
     );
   });
 
-  it('stops the build when the group or the item it goes after is not in the README, and does not hang it at the end', () => {
+  it('stops the build when the page it goes after is not in the README, and does not hang it at the end', () => {
     const without = (from: string, to: string): string => readme.replace(from, to);
-    expect(() =>
-      sidebarOf({ readme: without('- **Verify.**', '- **Check.**'), facts: FACTS, docs, record }),
-    ).toThrow(/no "The page that verifies itself" in its "Verify" group/);
     expect(() =>
       sidebarOf({
         readme: without('[The page that verifies itself]', '[The page that checks itself]'),
@@ -720,7 +721,7 @@ describe('the record page is in the sidebar, inside the group of the README that
         docs,
         record,
       }),
-    ).toThrow(/no "The page that verifies itself" in its "Verify" group/);
+    ).toThrow(/no "The page that verifies itself" in any group/);
   });
 });
 

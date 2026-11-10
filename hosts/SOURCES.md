@@ -55,7 +55,7 @@ What this site does: shows the cube (the 2D dark file the page publishes), unmod
 
 The rule, from https://opencode.ai/brand (Integrations): "Plugins, providers and tools that work with OpenCode, and projects built with it, can say so. Use a badge or a partner lockup, and name your project so it is clear that it is yours." and "Put a badge in your README, docs or website and link it to opencode.ai. Pick the light or dark file for your background (the HTML switches by itself), and do not change the colors or the text." The same page says: "OpenCode and the OpenCode logo are trademarks of Anomaly. Do not use them to suggest that Anomaly endorses or sponsors you, in your product or company name, or on merchandise without permission."
 
-What this site does: shows the logo file of the brand page (opencode-logo-transparent-dark.svg, for a dark page), unmodified, at the same height as every other mark, with no width set so it is not stretched or squashed, linked to https://opencode.ai, beside the name of the host in text. It is the logo, not the "Works with" badge.
+What this site does: shows the logo file of the brand page (opencode-logo-transparent-dark.svg, for a dark page), unmodified, at the same height as every other mark, with its height set and its width left to the file's proportions (the stylesheet gives the height and `width: auto`; the width attribute only reserves the space), so it is not stretched or squashed, linked to https://opencode.ai, beside the name of the host in text. It is the logo, not the "Works with" badge.
 
 ## Gemini CLI
 

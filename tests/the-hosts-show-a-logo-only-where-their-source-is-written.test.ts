@@ -91,25 +91,71 @@ describe('the logos this repository holds, against the product it is built from'
     expect(faultsAgainstProduct({ root: ROOT, sources: sources() })).toEqual([]);
   });
 
-  it('is skipped, with a line said, for a checkout that has no assets/hosts (a tag that predates it), and still holds the site\'s own table', () => {
-    const product = mkdtempSync(join(tmpdir(), 'the-product-'));
+  const checkout = (version: string, hosts?: Record<string, string>): string => {
+    const root = mkdtempSync(join(tmpdir(), 'the-product-'));
+    mkdirSync(join(root, 'packages/code'), { recursive: true });
+    writeFileSync(join(root, 'packages/code/package.json'), JSON.stringify({ version }));
+    if (hosts !== undefined) {
+      mkdirSync(join(root, PRODUCT_HOSTS_DIR), { recursive: true });
+      for (const [name, text] of Object.entries(hosts)) writeFileSync(join(root, PRODUCT_HOSTS_DIR, name), text);
+    }
+    return root;
+  };
+  const alpha = (dir: string, text = 'x'): void => {
+    writeFileSync(join(dir, 'alpha.svg'), text);
+    writeFileSync(join(dir, 'SOURCES.md'), `| \`alpha.svg\` | Alpha | https://alpha.example | 2026-11-09 | \`${sha256('x')}\` |\n`);
+  };
+  const shown = [{ name: 'Alpha', rung: 'a' }];
+  const logos = { Alpha: { file: 'alpha.svg', href: 'https://alpha.example', alt: '', width: 10, height: 10, owner: 'Alpha Inc.' } };
+
+  it('is skipped, with a line said, only for a checkout of a version below 0.1.8 that has no assets/hosts, and the site\'s own table still holds', () => {
+    const product = checkout('0.1.7');
     const dir = mkdtempSync(join(tmpdir(), 'the-site-'));
     const lines: unknown[][] = [];
     const log = vi.spyOn(console, 'log').mockImplementation((...a) => void lines.push(a));
     try {
-      writeFileSync(join(dir, 'alpha.svg'), 'x');
-      writeFileSync(join(dir, 'SOURCES.md'), `| \`alpha.svg\` | Alpha | https://alpha.example | 2026-11-09 | \`${sha256('x')}\` |\n`);
-      const logos = { Alpha: { file: 'alpha.svg', href: 'https://alpha.example', alt: '', width: 10, height: 10, owner: 'Alpha Inc.' } };
+      alpha(dir);
       expect(productHasHosts(product)).toBe(false);
       expect(faultsAgainstProduct({ root: product, dir, sources: readFileSync(join(dir, 'SOURCES.md'), 'utf8') })).toEqual([]);
-      expect(withLogos([{ name: 'Alpha', rung: 'a' }], { logos, dir, root: product })[0]?.logo?.file).toBe('alpha.svg');
+      expect(withLogos(shown, { logos, dir, root: product })[0]?.logo?.file).toBe('alpha.svg');
       expect(lines.join('\n')).toMatch(/not compared with the product's assets\/hosts\/: this tag predates it/);
       writeFileSync(join(dir, 'alpha.svg'), 'changed');
-      expect(() => withLogos([{ name: 'Alpha', rung: 'a' }], { logos, dir, root: product })).toThrow(/is not the file/);
+      expect(() => withLogos(shown, { logos, dir, root: product })).toThrow(/is not the file/);
     } finally {
       log.mockRestore();
       rmSync(product, { recursive: true, force: true });
       rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses a checkout of 0.1.8 or later that has no assets/hosts, whatever the version looks like', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'the-site-'));
+    try {
+      alpha(dir);
+      for (const version of ['0.1.8', '0.1.9', '0.2.0-beta', '1.0.0']) {
+        const product = checkout(version);
+        try {
+          expect(() => withLogos(shown, { logos, dir, root: product }), version).toThrow(/have nothing to equal/);
+        } finally {
+          rmSync(product, { recursive: true, force: true });
+        }
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('stops the build\'s own call on a file that differs from the product\'s, and passes on the product\'s own bytes', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'the-site-'));
+    const row = `| \`alpha.svg\` | Alpha | https://alpha.example | 2026-11-09 | \`${sha256('x')}\` |\n`;
+    const same = checkout('0.1.8', { 'alpha.svg': 'x', 'SOURCES.md': row });
+    const other = checkout('0.1.8', { 'alpha.svg': 'not x', 'SOURCES.md': row });
+    try {
+      alpha(dir);
+      expect(withLogos(shown, { logos, dir, root: same })[0]?.logo?.file).toBe('alpha.svg');
+      expect(() => withLogos(shown, { logos, dir, root: other })).toThrow(/is not the product's assets\/hosts\/alpha\.svg, byte for byte/);
+    } finally {
+      for (const d of [dir, same, other]) rmSync(d, { recursive: true, force: true });
     }
   });
 

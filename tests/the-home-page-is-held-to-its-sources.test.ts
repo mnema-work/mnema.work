@@ -604,7 +604,16 @@ when('the docs take the palette, and the way back to the home page', () => {
     const sidebar = /<ul class="top-level[\s\S]*?<\/ul>\s*<\/starlight-menu-button|<nav class="sidebar[\s\S]*?<\/nav>/.exec(docs())?.[0] ?? '';
     const links = new Set([...sidebar.matchAll(/<a href="(\/(?:docs|record)\/[^"]*)"/g)].map((m) => m[1]));
     expect(links.size, 'the sidebar was read').toBeGreaterThan(20);
-    expect([...listed].filter((l) => l?.startsWith('/docs/') || l?.startsWith('/record/')).sort()).toEqual([...links].sort());
+    // The header's own link to /docs/ is in the page, not in a group. A page in a folder of docs/ is in the sidebar under its
+    // group, and /docs/ lists the group as the one link to its index page: so a page at the top is listed as it is, no
+    // page inside a folder of a folder is listed, and nothing is listed that the sidebar does not hold.
+    links.delete('/docs/');
+    const depth = (l: string | undefined): number => (l ?? '').replace(/^\/docs\//, '').split('/').filter(Boolean).length;
+    const mine = [...listed].filter((l): l is string => l?.startsWith('/docs/') === true || l?.startsWith('/record/') === true);
+    const top = (all: Iterable<string | undefined>): string[] => [...all].filter((l) => l?.startsWith('/record/') === true || depth(l) === 1).sort() as string[];
+    expect(top(mine)).toEqual(top(links));
+    expect(mine.filter((l) => depth(l) >= 3), 'a page of a folder that its index page should have been the one link to').toEqual([]);
+    expect(mine.every((l) => links.has(l)), 'a link of /docs/ that the sidebar does not hold').toBe(true);
     for (const link of listed) expect(existsSync(join(DIST, link ?? '', 'index.html')), `${link} is a page`).toBe(true);
   });
 });

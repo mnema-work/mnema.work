@@ -1,0 +1,30 @@
+---
+import Illustration from './Illustration.astro';
+interface Props {
+  id?: string;
+  n: number;
+  kind: 'record' | 'session' | 'rule' | 'check';
+  title: string;
+  reverse?: boolean;
+  command: string;
+  verdict: string[];
+  failure: { lines: string[]; before: string; after: string };
+}
+const { id, n, kind, title, reverse = false, command, verdict, failure } = Astro.props;
+---
+<section id={id} class={`sec${reverse ? ' rev' : ''}`}>
+  <div class="wrap g">
+    <div class="txt">
+      <div class="k">0{n}</div>
+      <h2>{title}</h2>
+      <p><slot /></p>
+      {kind === 'check' && (
+        <p class="after">
+          <span class="tag-te">Tamper-evident, not tamper-proof.</span>
+          <a href="/docs/what-it-proves/">The whole table, claim by claim</a>
+        </p>
+      )}
+    </div>
+    <Illustration kind={kind} command={command} verdict={verdict} failure={failure} />
+  </div>
+</section>

@@ -793,6 +793,11 @@ describe('what this repository tracks', () => {
   const THE_FAVICON = 'build/the-favicon.mjs';
   // The palette is the one file that owns the colours of the site; every other file reads them from it.
   const THE_PALETTE = 'build/the-palette.mjs';
+  // The icons of the home page are drawn in one file, and it may hold the markup of an SVG and no colour: they are
+  // `currentColor` or a variable of the palette. The vendors' logos in `hosts/` are their own files, as published and
+  // untouched (`hosts/SOURCES.md` says where each is from), so they hold the markup and the colours of the vendor.
+  const THE_ICONS = 'src/icons.mjs';
+  const isAVendorLogo = (file: string): boolean => /^hosts\/[^/]+\.(?:svg|png)$/.test(file);
 
   it('is found at all, and holds the 404 as a Markdown file that git lists, and no landing template: the home page is a page of the site', () => {
     expect(files).toContain('not-found.md');
@@ -806,12 +811,15 @@ describe('what this repository tracks', () => {
     const colourOnly = /#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\(|data:image/;
     for (const file of files) {
       const text = readFileSync(join(SITE, file), 'utf8');
+      const swept = file === THE_FAVICON || file === THE_ICONS ? colourOnly : file === THE_PALETTE || isAVendorLogo(file) ? /(?!)/ : colour;
       expect(
-        (file === THE_FAVICON ? colourOnly : file === THE_PALETTE ? /(?!)/ : colour).test(text),
+        swept.test(text),
         `${file} writes a colour or a picture`,
       ).toBe(false);
     }
     expect(files, 'the favicon generator is among the files swept').toContain(THE_FAVICON);
+    expect(files, 'the icons are among the files swept').toContain(THE_ICONS);
+    expect(files.filter(isAVendorLogo).length, 'the vendors’ logos are among the files tracked').toBeGreaterThan(0);
   });
 });
 

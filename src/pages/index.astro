@@ -1,7 +1,8 @@
 ---
-// The home page: the product page of ADR-198 to ADR-200, direction V2, the chain. Its words are written here; the facts
-// it shows (the counts, the hosts and their rungs, the commands, the verdict, the links) are read by the build from the
-// checkout of the release tag and handed over in `src/generated/home.json`, so none of them is typed twice.
+// The home page: the product page of direction B (ADR-245, ADR-246). Its words are written in the components of
+// `src/components/home/`; the facts it shows (the counts, the hosts and their rungs, the commands, the verdict, the
+// refusal of the session demo, the links) are read by the build from the checkout of the release tag and handed over
+// in `src/generated/home.json`, so none of them is typed twice.
 import '@fontsource/jetbrains-mono/latin-400.css';
 import '@fontsource/jetbrains-mono/latin-500.css';
 import '@fontsource/jetbrains-mono/latin-700.css';
@@ -12,8 +13,15 @@ import '@fontsource/instrument-sans/latin-600.css';
 import '../generated/palette.css';
 import '../styles/home.css';
 import home from '../generated/home.json';
-import mark from '../assets/mark-dark.svg?raw';
 import built from '../generated/the-build.json';
+import Bar from '../components/home/Bar.astro';
+import Close from '../components/home/Close.astro';
+import Footer from '../components/home/Footer.astro';
+import Hero from '../components/home/Hero.astro';
+import HostsStrip from '../components/home/HostsStrip.astro';
+import Measured from '../components/home/Measured.astro';
+import Section from '../components/home/Section.astro';
+import SessionDemo from '../components/home/SessionDemo.astro';
 import { jsonLdOf, structuredDataOf } from '../../build/the-pages.mjs';
 
 const title = 'mnema: the decision record for AI coding agents';
@@ -30,20 +38,12 @@ const facts = {
   extensionId: home.install.extensionId,
 };
 
-// The chain of the hero: an illustration. Each block says what it is and names the one before it by a hash.
-const chain = [
-  { head: 'ADR-1 recorded', body: 'Keep money as integer cents', hash: 'hash 1be7…04d9' },
-  { head: 'ADR-1 accepted', body: 'by a person', hash: 'prev 1be7…04d9' },
-  { head: 'rule at a path', body: 'src/billing refuses a write', hash: 'prev 7c21…9e30' },
-  { head: 'edit refused', body: 'the agent asks instead', hash: 'prev 19be…a4c1' },
-];
-const checkpoint = { head: 'checkpoint signed', body: 'verified T1/T2/T4', hash: 'offline, no key' };
-
-const tier = { d: 'top', c: 'mid' };
-const hosts = [...home.hosts].sort((a, b) => b.rung.localeCompare(a.rung));
-const [followed, followedOf] = home.measured.followed;
-const [plugin, pluginOf] = home.measured.plugin;
-const [cli, cliOf] = home.measured.cli;
+const sections = [
+  { id: 'how', kind: 'record', title: 'Record the why', words: 'When a choice is settled, your agent records it with the reason and what it turned down. It counts once it is accepted.' },
+  { kind: 'session', title: 'Every session starts with it', words: 'Each new session opens with the decisions in force. The next agent starts from what was settled, not from zero.' },
+  { kind: 'rule', title: 'Rules meet the edit', words: 'Point a decision at a path. An agent’s edit there waits for a person, or is refused with the rule named. The shell is not stopped.' },
+  { kind: 'check', title: 'Anyone can check it', words: 'Every event is signed and chained. mnema verify checks the record with no key and no network, and fails when one word was changed.' },
+] as const;
 ---
 
 <!doctype html>
@@ -73,188 +73,22 @@ const [cli, cliOf] = home.measured.cli;
     <script type="application/ld+json" set:html={jsonLdOf(structuredDataOf(facts))} />
   </head>
   <body class="home">
-    <header class="bar">
-      <a class="brand" href="#top"><Fragment set:html={mark} /><span class="mono name">mnema</span></a>
-      <nav aria-label="Main">
-        <a href="#how">How it works</a>
-        <a href="#measured">Measured</a>
-        <a href="/docs/">Docs</a>
-        <a href={home.links.github}>GitHub</a>
-        <a class="btn primary small" href="#start">Get started</a>
-      </nav>
-    </header>
-
-    <main>
-      <section id="top" class="hero">
-        <p class="kicker accent">// the decision record for AI coding agents</p>
-        <h1>Who decided this, and why?</h1>
-        <p class="mono answer">mnema keeps the answer.</p>
-        <p class="lede">Each agent session opens with the decisions in force, each edit meets the rules for its file, and anyone can check offline that nothing in the record was changed.</p>
-        <div class="actions">
-          <div class="install mono">
-            <span><span class="prompt">$</span> <span id="install-line">{home.install.binary}</span></span>
-            <button type="button" data-copy={home.install.binary} data-from="install-line" aria-label="Copy the install command">copy</button>
-          </div>
-          <a class="btn" href="/docs/first-record/">Read the first record</a>
-        </div>
+    <Bar github={home.links.github} />
+    <main id="main">
+      <Hero install={home.install.binary} />
+      {sections.map((s, i) => (
+        <Section id={'id' in s ? s.id : undefined} n={i + 1} kind={s.kind} title={s.title} reverse={i % 2 === 1} command={home.verdict.command} verdict={home.verdict.lines} failure={home.failure}>{s.words}</Section>
+      ))}
+      <SessionDemo refusal={home.refusal} />
+      <section class="proof">
+        <HostsStrip hosts={home.hosts} rungs={home.rungs} />
+        <Measured sessions={home.measured.sessions} followed={home.measured.followed} plugin={home.measured.plugin} cli={home.measured.cli} url={home.measuredUrl} />
       </section>
-
-      <section class="chain" aria-labelledby="chain-note">
-        <div class="chain-box" aria-hidden="true">
-          <div class="chain-row">
-            {chain.map((block) => (
-              <>
-                <div class="block">
-                  <div class="block-head"><span class="blk"></span><span class="mono">{block.head}</span></div>
-                  <span class="mono body">{block.body}</span>
-                  <span class="mono hash">{block.hash}</span>
-                </div>
-                <div class="link"></div>
-              </>
-            ))}
-            <div class="block lit verified">
-              <span class="mono title">{checkpoint.head}</span>
-              <span class="mono body">{checkpoint.body}</span>
-              <span class="mono hash">{checkpoint.hash}</span>
-            </div>
-          </div>
-        </div>
-        <p class="sr-only">
-          A record as a chain of signed blocks: {chain.map((b) => `${b.head}, ${b.body}, ${b.hash}`).join('; ')}; then {checkpoint.head}, {checkpoint.body}, {checkpoint.hash}.
-        </p>
-        <p id="chain-note" class="kicker">An illustration: every event names the hash of the one before it, and every checkpoint is signed.</p>
-      </section>
-
-      <section class="band">
-        <div class="wrap split">
-          <div class="col narrow">
-            <p class="kicker">block 01 · the problem</p>
-            <h2>A choice settled in a chat that ends is a choice nobody can check.</h2>
-          </div>
-          <div class="col wide">
-            <div class="line"><span class="mono bad" aria-hidden="true">✕</span><p><b>In a chat that ends.</b> The session closes and the reason goes with it.</p></div>
-            <div class="line"><span class="mono bad" aria-hidden="true">✕</span><p><b>In one tool's memory.</b> The next agent, on another host, never sees it.</p></div>
-            <div class="line"><span class="mono bad" aria-hidden="true">✕</span><p><b>In somebody's head.</b> Nobody can tell who decided it, or if it changed.</p></div>
-            <div class="line fix"><span class="mono good" aria-hidden="true">✓</span><p>mnema writes it down in the repository, next to the code, with its reasons and what was turned down. The record only grows: a change of mind supersedes, it never edits.</p></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="how" class="wrap stack">
-        <div class="head"><p class="kicker">block 02 · how it works</p><h2>Record. Rule. Hand over. Verify.</h2></div>
-        <div class="cards four">
-          <div class="card"><span class="blk"></span><h3>record</h3><p>An agent over MCP, or you at the command line, writes a decision with its reasoning and the options turned down.</p></div>
-          <div class="card"><span class="blk"></span><h3>rule</h3><p>Accepted, it is in force. Linked to a path, it can govern it, ask for a person there, or refuse a write.</p></div>
-          <div class="card"><span class="blk"></span><h3>hand over</h3><p>With the plugin, each session opens with what is in force, and each edit meets the rules for its file.</p></div>
-          <div class="card"><span class="blk mint"></span><h3>verify</h3><p>Every write ends in a signed checkpoint. <span class="mono inline">mnema verify</span>, a second reader in Python, or a page in the browser checks it.</p></div>
-        </div>
-      </section>
-
-      <section class="wrap readers">
-        <div class="full"><p class="kicker">block 03 · two readers, one record</p></div>
-        <div class="reader">
-          <p class="mono label">for developers</p>
-          <h2>Your agent remembers why.</h2>
-          <p>Every session opens with the decisions in force, by name and id, on any host you use.</p>
-          <p>The agent records its own decisions, with what it turned down, and links them to the code they govern.</p>
-          <p>One command founds the record. Two install the plugin.</p>
-        </div>
-        <div class="reader">
-          <p class="mono label">for teams</p>
-          <h2>Rules that meet each edit.</h2>
-          <p>A rule addressed at a path can govern it, ask for a person, or refuse a write in the host's editing tools.</p>
-          <p>Every acceptance is signed and says who made it: a person, or an agent marked as one.</p>
-          <p>A change of mind supersedes the old decision, so the history of every choice stays readable.</p>
-        </div>
-      </section>
-
-      <section id="measured" class="band ruled">
-        <div class="wrap stack">
-          <div class="head wide-head"><p class="kicker">block 04 · measured, not promised</p><h2>{home.measured.sessions} Claude Code sessions, under a published pre-registration.</h2></div>
-          <div class="cards three">
-            <div class="card count"><p class="mono big">{followed}<span class="of">/{followedOf}</span></p><p>A rule written only in AGENTS.md was followed, as in CLAUDE.md.</p></div>
-            <div class="card count hot"><p class="mono big accent">{plugin}<span class="of">/{pluginOf}</span></p><p>Decisions the agent recorded through the plugin, linked to the code they govern.</p></div>
-            <div class="card count"><p class="mono big">{cli}<span class="of">/{cliOf}</span></p><p>The same, through the command line alone.</p></div>
-          </div>
-          <p class="note">Counts from one model and a handful of tasks, not rates. <a href={home.measuredUrl}>The pre-registration, the kit and the result</a>.</p>
-        </div>
-      </section>
-
-      <section class="wrap split center">
-        <div class="col half">
-          <p class="kicker">block 05 · don't take our word for it</p>
-          <h2>This site's own record, checked in your browser.</h2>
-          <p>The page reads the record this project commits and verifies every signature and every link of the chain on your machine. No key and no network are needed.</p>
-          <div><a class="btn primary" href="/record/">Open the record</a></div>
-        </div>
-        <div class="col half">
-          <div class="console mono">
-            <div class="cmd"><span class="prompt">$</span> {home.verdict.command}</div>
-            <div class="verified">{home.verdict.lines[0]}</div>
-            <div class="muted">{home.verdict.lines[1]}</div>
-          </div>
-        </div>
-      </section>
-
-      <section class="band ruled-top">
-        <div class="wrap stack tight">
-          <div class="head"><p class="kicker">block 06 · hosts</p><h2>Any host with an MCP client. More where its hooks allow.</h2></div>
-          <p class="mono legend">{home.rungs.map((r) => `${r.letter} · ${r.words}`).join('   ')}</p>
-          <ul class="hosts mono">
-            {hosts.map((host) => (
-              <li class={`host ${tier[host.rung] ?? 'low'}`}>{host.name} <b>{host.rung}</b></li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section class="wrap honest">
-        <div class="full head"><p class="kicker">block 07 · the honest part</p><h2>What it proves, and what it does not.</h2></div>
-        <div class="verdict holds">
-          <p class="mono label">holds</p>
-          <p>A changed or reordered event breaks the hash chain.</p>
-          <p>An edit made without the signing key is caught where the signed checkpoints remain.</p>
-        </div>
-        <div class="verdict fails">
-          <p class="mono label">does not hold</p>
-          <p>Nothing proves that nothing was removed: the history your git remote keeps is what covers that.</p>
-          <p>A green verify means nothing verifiable is broken, not that the record is honest.</p>
-        </div>
-        <p class="note full">Tamper-evident, not tamper-proof. <a href="/docs/what-it-proves/">The whole table, claim by claim</a>.</p>
-      </section>
-
-      <section id="start" class="band ruled-top">
-        <div class="wrap split">
-          <div class="col start-words">
-            <p class="kicker">block 08 · yours, in your repository</p>
-            <h2>Start a record in a minute.</h2>
-            <p>Apache-2.0. The record lives in <span class="mono inline">.mnema/</span>, committed with your code. No account, and no server of ours.</p>
-          </div>
-          <div class="col start-code">
-            <div class="code mono" tabindex="0" role="region" aria-label="The commands that start a record">
-              <div><span class="prompt">$</span> {home.install.binary}</div>
-              <div><span class="prompt">$</span> {home.install.found}</div>
-              <div class="comment"># hand the record to your agent, in Claude Code:</div>
-              {home.install.plugin.map((command) => <div><span class="prompt">$</span> {command}</div>)}
-              <div class="comment"># in VS Code: {home.install.extension}</div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <Close install={home.install} />
     </main>
+    <Footer owners={home.owners} links={home.links} contact={home.contact} built={built} />
 
-    <footer class="wrap foot">
-      <div class="brand small"><Fragment set:html={mark} /><span class="mono muted">mnema · Apache-2.0</span></div>
-      <nav aria-label="Elsewhere">
-        <a href="/docs/">Docs</a><a href={home.links.github}>GitHub</a><a href={home.links.npm}>npm</a><a href={home.links.marketplace}>VS Code</a><span class="mono muted">{home.contact.general}</span><span class="mono muted">{home.contact.security}</span>
-      </nav>
-      <p class="the-build mono">
-        mnema <span data-version>{built.version}</span> · commit{' '}
-        <a data-commit href={`${built.repoUrl}/commit/${built.sha}`}>{built.sha.slice(0, 12)}</a>
-      </p>
-    </footer>
-
-    <script>
+<script>
       // The copy button: the clipboard API inside the click, and, where the browser refuses it, the text selected so
       // a keystroke finishes the job.
       for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-copy]')) {
@@ -283,6 +117,66 @@ const [cli, cliOf] = home.measured.cli;
             done(select() ? 'selected' : 'copy');
           }
         });
+      }
+
+      // Change one word: the illustration flips between the two outputs the page holds, and says which is shown.
+      for (const button of document.querySelectorAll<HTMLButtonElement>('[data-vfy] button')) {
+        button.addEventListener('click', () => {
+          const box = button.closest('[data-vfy]');
+          const broken = box?.classList.toggle('broken') ?? false;
+          button.textContent = broken ? 'Put the word back' : 'Change one word';
+          button.setAttribute('aria-pressed', String(broken));
+        });
+      }
+
+      // Replay: the demo's messages start again from the first.
+      const replay = document.querySelector<HTMLButtonElement>('.chat .tb button');
+      replay?.addEventListener('click', () => {
+        const chat = replay.closest('.chat');
+        chat?.classList.remove('play');
+        void (chat as HTMLElement | null)?.offsetWidth;
+        chat?.classList.add('play');
+      });
+
+      // The motion starts only where the reader has not asked for less: with it asked, the scenes stay at their last
+      // frame, which is how the markup and the style write them.
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const scene = document.querySelector<HTMLElement>('.scene');
+        if (scene) {
+          const steps = [1, 2, 3, 4].map((i) => scene.querySelector<HTMLElement>(`.st${i}`));
+          const rail = document.querySelector<HTMLElement>('.rail b');
+          let n = 0;
+          scene.classList.add('run');
+          const tick = () => {
+            n = (n % 5) + 1;
+            const shown = Math.min(n, 4);
+            steps.forEach((step, i) => {
+              step?.classList.toggle('on', i < shown);
+              step?.classList.toggle('now', i === shown - 1 && n < 5);
+            });
+            if (rail) rail.style.width = `${shown * 25}%`;
+          };
+          tick();
+          setInterval(tick, 2100);
+        }
+        if ('IntersectionObserver' in window) {
+          const seen = new IntersectionObserver(
+            (entries) => {
+              for (const entry of entries) {
+                const target = entry.target;
+                const once = target.classList.contains('chat');
+                if (entry.isIntersecting) {
+                  target.classList.add('play', 'in');
+                  if (once) seen.unobserve(target);
+                } else if (!once) {
+                  target.classList.remove('play');
+                }
+              }
+            },
+            { threshold: 0.25 },
+          );
+          for (const target of document.querySelectorAll('.ill, .chat')) seen.observe(target);
+        }
       }
     </script>
   </body>

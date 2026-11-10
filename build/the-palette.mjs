@@ -1,4 +1,4 @@
-// The colours and the two typefaces of the site: direction V2, the chain. They are written here and nowhere else; the
+// The colours and the two typefaces of the site: the dark page of direction B. They are written here and nowhere else; the
 // home page and the docs both read them (the home through `src/styles/home.css`, which a test holds to this file, and
 // the docs through `themeCss`), so a reader who goes from / to /docs/ stays in one palette.
 
@@ -33,6 +33,15 @@ export const PALETTE = Object.freeze({
   mintGround: '#0f1a18',
   redLine: '#5c3a3a',
   redGround: '#1a1012',
+  /** The home page of direction B: the plate under the cards, the soft accent ground, the amber of what waits, the ink on red. */
+  plate: '#0f1318',
+  accentSoft: '#1a1428',
+  onRed: '#1a0a0b',
+  amber: '#f2c46b',
+  amberGround: '#261d0b',
+  /** The two translucent paints: the glow of the accent behind a scene, and the shade under a raised card. */
+  glow: 'rgba(196, 160, 245, 0.22)',
+  shade: 'rgba(0, 0, 0, 0.45)',
 });
 
 /** `--<kebab-name>: <colour>` for every colour of the palette: the one file the home page's colours are read from. */

@@ -1,0 +1,28 @@
+---
+import Icon from './Icon.astro';
+import { TITLE } from './words';
+---
+<div class="scene" role="img" aria-label="How a decision travels, in four steps: an agent settles a call, it is recorded and signed, it is kept in your repository, and the next session starts with it.">
+  <div class="steps">
+    <div class="st st1 card on">
+      <div class="lab"><i>1</i>An agent settles a call</div>
+      <div class="bub"><div class="who"><Icon name="bot" /></div><p>Money stays in integer cents. A decimal library was slower.</p></div>
+    </div>
+    <div class="st st2 card on">
+      <div class="lab"><i>2</i>Recorded and signed</div>
+      <div class="dec"><span class="seal"><Icon name="seal" /></span><h4>{TITLE}</h4><div class="row"><span>why</span>Float sums drift.</div><div class="row"><span>not</span>A decimal library.</div></div>
+    </div>
+    <div class="st st3 card on">
+      <div class="lab"><i>3</i>Kept in your repository</div>
+      <div class="repo"><Icon name="folder" />your-repo/.mnema/</div>
+      <div class="chain"><span class="blk"></span><span class="lnk"></span><span class="blk"></span><span class="lnk"></span><span class="blk"></span><span class="lnk"></span><span class="blk new"></span></div>
+      <p>Appended, never edited. Committed with your code.</p>
+    </div>
+    <div class="st st4 card on">
+      <div class="lab"><i>4</i>The next session starts with it</div>
+      <div class="win"><div class="tb"><i></i><i></i><i></i><span>new session</span></div><div class="bd"><div class="inforce"><Icon name="check" class="ico" />In force: {TITLE}</div><div class="ghost"></div><div class="ghost s"></div></div></div>
+    </div>
+    <span class="arrowx a12"><Icon name="arrow" /></span><span class="arrowx a23"><Icon name="arrow" /></span><span class="arrowx a34"><Icon name="arrow" /></span>
+  </div>
+  <div class="rail"><b></b></div>
+</div>

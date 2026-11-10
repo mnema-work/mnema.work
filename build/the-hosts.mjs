@@ -16,11 +16,20 @@ export const SOURCES = `${HOSTS_DIR}/SOURCES.md`;
 /**
  * The hosts that carry a logo, by the name the README's table gives them. `href` is where the vendor's rule says the
  * logo links to; `alt` is the text of the picture, which is the host's own name or the words the vendor's file says.
- * @type {Readonly<Record<string, { file: string, href: string, alt: string, width: number, height: number }>>}
+ * @type {Readonly<Record<string, { file: string, href: string, alt: string, width: number, height: number, owner: string }>>}
  */
 export const LOGOS = Object.freeze({
-  OpenCode: { file: 'opencode-works-with-a-dark-20.svg', href: 'https://opencode.ai', alt: 'Works with OpenCode', width: 153, height: 20 },
-  'Copilot CLI': { file: 'GitHub_Invertocat_White.svg', href: 'https://github.com', alt: 'GitHub', width: 20, height: 20 },
+  'Claude Code': { file: 'claude-icon.svg', href: 'https://claude.com/product/claude-code', alt: '', width: 20, height: 20, owner: 'Anthropic' },
+  'VS Code': { file: 'vscode.svg', href: 'https://code.visualstudio.com', alt: '', width: 20, height: 20, owner: 'Microsoft' },
+  'Copilot CLI': { file: 'GitHub_Invertocat_White.svg', href: 'https://github.com', alt: 'GitHub', width: 20, height: 20, owner: 'GitHub, Inc.' },
+  'Cursor CLI': { file: 'cursor-brand-logo-12.svg', href: 'https://cursor.com', alt: '', width: 20, height: 20, owner: 'Anysphere' },
+  OpenCode: { file: 'opencode-works-with-a-dark-20.svg', href: 'https://opencode.ai', alt: 'Works with OpenCode', width: 153, height: 20, owner: 'Anomaly' },
+  'Gemini CLI': { file: 'gemini-cli-icon.png', href: 'https://github.com/google-gemini/gemini-cli', alt: '', width: 20, height: 20, owner: 'Google' },
+  'Qwen Code': { file: 'qwen-code-logo.svg', href: 'https://github.com/QwenLM/qwen-code', alt: '', width: 20, height: 20, owner: 'the Qwen Code project' },
+  Cursor: { file: 'cursor-brand-logo-12.svg', href: 'https://cursor.com', alt: '', width: 20, height: 20, owner: 'Anysphere' },
+  'Antigravity CLI': { file: 'antigravity-favicon.svg', href: 'https://antigravity.google', alt: '', width: 20, height: 20, owner: 'Google' },
+  'Factory Droid': { file: 'factory-favicon.svg', href: 'https://github.com/Factory-AI/factory', alt: '', width: 20, height: 20, owner: 'Factory' },
+  Goose: { file: 'goose-logo.svg', href: 'https://github.com/aaif-goose/goose', alt: '', width: 20, height: 20, owner: 'the Goose project' },
 });
 
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -54,6 +63,11 @@ export function faultsOf({ logos = LOGOS, dir = join(SITE, HOSTS_DIR), sources }
     }
   }
   return faults;
+}
+
+/** The owners of the logos shown, once each and in the order of the hosts, for the footer's line of marks. */
+export function ownersOf(hosts) {
+  return [...new Set(hosts.filter((h) => h.logo !== undefined).map((h) => h.logo.owner))];
 }
 
 /** The hosts of the README with their logo where they have one; stops on a logo that is not sourced. */

@@ -1,7 +1,7 @@
 ---
 import Icon from './Icon.astro';
 import { NOT, TITLE, WHY } from './words';
-interface Props { kind: 'record' | 'session' | 'rule' | 'check'; command: string; verdict: string[]; failure: string[] }
+interface Props { kind: 'record' | 'session' | 'rule' | 'check'; command: string; verdict: string[]; failure: { lines: string[]; before: string; after: string } }
 const { kind, command, verdict, failure } = Astro.props;
 const sessions = ['Claude Code', 'Codex', 'VS Code'];
 const blocks = [1, 2, 3, 4, 5];
@@ -40,7 +40,7 @@ const blocks = [1, 2, 3, 4, 5];
   </div>
 )}
 {kind === 'check' && (
-  <div class="ill ill-check mv" role="group" aria-label="Change one word: an illustration of two real outputs of mnema verify, the first on the record as committed and the second after one character of a title was changed. The verifier itself runs on the page of this site's own record.">
+  <div class="ill ill-check mv" role="group" aria-label="Change one word: an illustration of two real outputs of mnema verify, the first on the record as committed and the second after one character of the title of one of its decisions was changed. The verifier itself runs on the page of this site's own record.">
     <div class="vfy card" data-vfy>
       <div class="lab centre">.mnema/, as committed</div>
       <div class="chain" aria-hidden="true">
@@ -54,12 +54,12 @@ const blocks = [1, 2, 3, 4, 5];
       <div class="res">
         <div class="swap">
           <div class="a0"><div class="console mono"><div class="cmd"><span class="prompt">$</span> {command}</div><div class="verified">{verdict[0]}</div><div class="muted">{verdict[1]}</div></div></div>
-          <div class="a1"><div class="console mono broken"><div class="cmd"><span class="prompt">$</span> {command}</div><div class="failed">{failure[0]}</div><div class="muted">{failure[1]}</div></div></div>
+          <div class="a1"><div class="console mono broken"><div class="cmd"><span class="prompt">$</span> {command}</div><div class="failed">{failure.lines[0]}</div><div class="muted">{failure.lines[1]}</div></div></div>
         </div>
       </div>
-      <div class="word" aria-hidden="true"><span class="w0">“integer cents”</span><span class="w1">“integer <mark>pennies</mark>”</span></div>
+      <div class="word" aria-hidden="true"><span class="w0">“{failure.before}…”</span><span class="w1">“<mark>{failure.after.slice(0, 1)}</mark>{failure.after.slice(1)}…”</span></div>
       <div class="x"><button type="button" aria-pressed="false" aria-label="Change one word of the record, and see the verifier fail">Change one word</button></div>
-      <p class="honest-note">An illustration of two real outputs, captured from the verifier. <a href="/record/">Run it on this site's own record</a>, in your browser.</p>
+      <p class="honest-note">An illustration of two real outputs, captured from the verifier: the second after the first character of the title above was changed. <a href="/record/">Run it on this site's own record</a>, in your browser.</p>
     </div>
   </div>
 )}

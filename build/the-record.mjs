@@ -68,7 +68,8 @@ export function theVerdictOfTheCommit({ root, repo = root, sha, command }) {
  * shows after the change, each a stretch of what the binary printed (the first clause of its verdict, and the message of
  * the first issue it named for the changed event). The change is made in the extracted copy, never in the checkout.
  * Throws when the changed record still verifies, or when the output has not the two lines.
- * @returns {string[]} the verdict's first clause, and the message of the first issue
+ * @returns {{ lines: string[], before: string, after: string }} the verdict's first clause and the message of the first
+ * issue, and the start of the title that was changed, before and after (its first character is the one that changed)
  */
 export function theFailureOfTheCommit({ root, repo = root, sha, command }) {
   const [program, ...args] = command.trim().split(/\s+/);
@@ -82,7 +83,10 @@ export function theFailureOfTheCommit({ root, repo = root, sha, command }) {
     const text = readFileSync(tail, 'utf8');
     const at = text.indexOf('"title":"') + '"title":"'.length;
     if (at < '"title":"'.length + 1) throw new Error(`the first tail of ${sha} has no title to change`);
-    writeFileSync(tail, text.slice(0, at) + (text[at] === 'Z' ? 'Y' : 'Z') + text.slice(at + 1));
+    const changed = text[at] === 'Z' ? 'Y' : 'Z';
+    writeFileSync(tail, text.slice(0, at) + changed + text.slice(at + 1));
+    // The words the page shows beside the two outputs: the start of that title, before and after the change.
+    const title = /^[^"\\]*(?:\\.[^"\\]*)*/.exec(text.slice(at))?.[0] ?? '';
     const said = run(root, tree, args);
     if (said.status === 0) throw new Error('the record verifies after a character of it was changed');
     const clause = said.stdout.trim().split('\n')[0]?.split('; ')[0] ?? '';
@@ -90,7 +94,7 @@ export function theFailureOfTheCommit({ root, repo = root, sha, command }) {
     if (!clause.startsWith('public: local integrity FAILED') || issue === undefined) {
       throw new Error(`the output of a changed record no longer has the lines the home page shows:\n${`${said.stdout}${said.stderr}`.slice(0, 1500)}`);
     }
-    return [clause, issue];
+    return { lines: [clause, issue], before: title.slice(0, 48), after: changed + title.slice(1, 48) };
   });
 }
 

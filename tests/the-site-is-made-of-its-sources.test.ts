@@ -797,7 +797,7 @@ describe('what this repository tracks', () => {
   // `currentColor` or a variable of the palette. The vendors' logos in `hosts/` are their own files, as published and
   // untouched (`hosts/SOURCES.md` says where each is from), so they hold the markup and the colours of the vendor.
   const THE_ICONS = 'src/icons.mjs';
-  const isAVendorLogo = (file: string): boolean => /^hosts\/[^/]+\.svg$/.test(file);
+  const isAVendorLogo = (file: string): boolean => /^hosts\/[^/]+\.(?:svg|png)$/.test(file);
 
   it('is found at all, and holds the 404 as a Markdown file that git lists, and no landing template: the home page is a page of the site', () => {
     expect(files).toContain('not-found.md');

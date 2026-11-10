@@ -77,7 +77,7 @@ const sections = [
     <main id="main">
       <Hero install={home.install.binary} />
       {sections.map((s, i) => (
-        <Section id={'id' in s ? s.id : undefined} n={i + 1} kind={s.kind} title={s.title} reverse={i % 2 === 1} command={home.verdict.command} verdict={home.verdict.lines} failure={home.failure.lines}>{s.words}</Section>
+        <Section id={'id' in s ? s.id : undefined} n={i + 1} kind={s.kind} title={s.title} reverse={i % 2 === 1} command={home.verdict.command} verdict={home.verdict.lines} failure={home.failure}>{s.words}</Section>
       ))}
       <SessionDemo refusal={home.refusal} />
       <section class="proof">
@@ -86,7 +86,7 @@ const sections = [
       </section>
       <Close install={home.install} />
     </main>
-    <Footer links={home.links} contact={home.contact} built={built} />
+    <Footer owners={home.owners} links={home.links} contact={home.contact} built={built} />
 
 <script>
       // The copy button: the clipboard API inside the click, and, where the browser refuses it, the text selected so

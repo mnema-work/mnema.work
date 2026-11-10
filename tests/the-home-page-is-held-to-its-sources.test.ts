@@ -233,49 +233,68 @@ when('the built home page', () => {
     for (const href of hrefs.filter((h) => h.startsWith('#'))) expect(ids.has(href.slice(1)), href).toBe(true);
   });
 
-  // The scenes of the page, the classes whose rules move, and the class that names each one: the glow behind the hero, the four
-  // steps of the hero, the four illustrations and the session demo.
-  const SCENES: [name: string, root: string, family: string][] = [
+  // The scenes of the page. `root` is the class of the element that holds the scene, which the reduced-motion rule names
+  // with `*`; `context` are the classes a selector may name to be inside that scene, and no class is in two scenes, so a
+  // moving rule is tied to one scene and the scene's own rule under prefers-reduced-motion is the one that stops it.
+  const SCENES: [name: string, root: string, context: string][] = [
     ['the glow behind the hero', 'hero-glow', 'hero-glow'],
-    ['the four steps of the hero', 'scene', 'scene|st\\d?|seal|rail|inforce|blk|ghost|arrowx'],
-    ['the record', 'ill-record', 'form|swap|by|fld'],
-    ['the sessions', 'ill-session', 'stack|inforce|win'],
-    ['the rule', 'ill-rule', 'pen|refuse'],
-    ['the check', 'ill-check', 'vfy|res|blk|lnk'],
-    ['the session demo', 'chat', 'chat|body'],
+    ['the four steps of the hero', 'scene', 'scene'],
+    ['the record', 'ill-record', 'ill-record|form'],
+    ['the sessions', 'ill-session', 'ill-session|stack'],
+    ['the rule', 'ill-rule', 'ill-rule|tree'],
+    ['the check', 'ill-check', 'ill-check|vfy'],
+    ['the session demo', 'chat', 'chat'],
   ];
   const rulesOf = (css: string): { selector: string; body: string }[] =>
     [...css.matchAll(/([^{}@]+)\{([^{}]*)\}/g)].map((m) => ({ selector: (m[1] ?? '').trim(), body: m[2] ?? '' }));
   const moves = (body: string): boolean => /\banimation(?:-name)?\s*:\s*(?!none)[^;}]+|\btransition\s*:\s*(?!none)[^;}]+/.test(body);
-
-  it('moves only inside a scene, moves in every scene, and none of it under prefers-reduced-motion', () => {
-    const css = sourceOf('src/styles/home.css');
+  /** The opacity a rule gives, when it dims (less than 1). */
+  const dims = (body: string): boolean => [...body.matchAll(/(?<![-\w])opacity\s*:\s*([\d.]+)/g)].some((m) => Number(m[1]) < 1);
+  /** The scenes a selector part is inside, by the classes it names. */
+  const scenesOf = (part: string): string[] =>
+    SCENES.filter(([, , context]) => new RegExp(`\\.(?:${context})(?![\\w-])`).test(part)).map(([, root]) => root);
+  /** The text of a CSS file without its reduced-motion block (which is the only one, and is read apart). */
+  const split = (css: string): { outside: string; reduced: string } => {
     const at = css.indexOf('@media (prefers-reduced-motion: reduce)');
     expect(at, 'the reduced-motion block is there, once').toBeGreaterThan(0);
     expect(css.indexOf('@media (prefers-reduced-motion: reduce)', at + 1)).toBe(-1);
-    const reduced = css.slice(at);
-    const outside = css.slice(0, at);
-    const motion = rulesOf(outside.replace(/@keyframes\s+[\w-]+\s*\{([\s\S]*?\})\s*\}/g, '')).filter((r) => moves(r.body));
-    expect(motion.length, 'the page moves').toBeGreaterThan(20);
-    for (const rule of motion) {
-      for (const part of rule.selector.split(',').map((s) => s.trim())) {
-        expect(
-          SCENES.some(([, , family]) => new RegExp(`^\\.home (?:\\.play )?(?:[.\\w-]+ )*\\.(?:${family})(?![\\w-])`).test(part)) ||
-            // The reveal of an illustration as it comes into view is on the illustration itself, which each scene's rule below covers.
-            /^\.home \.(?:scene|chat|mv)\b/.test(part),
-          `${part} moves and is in no scene`,
-        ).toBe(true);
+    let depth = 0;
+    let end = css.length;
+    for (let i = css.indexOf('{', at); i < css.length; i++) {
+      depth += css[i] === '{' ? 1 : css[i] === '}' ? -1 : 0;
+      if (depth === 0) {
+        end = i + 1;
+        break;
       }
     }
+    return { outside: css.slice(0, at) + css.slice(end), reduced: css.slice(at, end) };
+  };
+
+  it('moves only inside a scene, moves in every scene, dims only inside a scene, and none of it under prefers-reduced-motion', () => {
+    const css = sourceOf('src/styles/home.css');
+    const { outside, reduced } = split(css);
+    const rules = rulesOf(outside.replace(/@keyframes\s+[\w-]+\s*\{([\s\S]*?\})\s*\}/g, ''));
+    const motion = rules.filter((r) => moves(r.body));
+    expect(motion.length, 'the page moves').toBeGreaterThan(20);
+    // Every rule that moves, and every rule that dims, in the whole file bar the reduced-motion block: each selector part is
+    // inside exactly one scene.
+    for (const rule of rules.filter((r) => moves(r.body) || dims(r.body))) {
+      for (const part of rule.selector.split(',').map((s) => s.trim())) {
+        expect(scenesOf(part), `${part} moves or dims and is not inside exactly one scene`).toHaveLength(1);
+      }
+    }
+    // A keyframe that dims is named by an animation of a rule inside a scene (the rules above), and one that does not end at
+    // full opacity is the swap of two readings, so its element is described by its scene's aria-label.
     expect(css, 'no smooth scrolling').not.toMatch(/scroll-behavior\s*:\s*smooth/);
     const stillRules = rulesOf(reduced);
-    for (const [name, root, family] of SCENES) {
-      const own = motion.filter((r) => r.selector.split(',').some((s) => new RegExp(`\\.(?:${root}|${family})(?![\\w-])`).test(s)));
+    for (const [name, root] of SCENES) {
+      const own = motion.filter((r) => r.selector.split(',').some((s) => scenesOf(s.trim()).includes(root)));
       expect(own.length, `${name} moves`).toBeGreaterThan(0);
+      // The scene's rule under prefers-reduced-motion names the scene's own element and everything inside it.
       const kills = stillRules.filter(
         (r) =>
-          new RegExp(`\\.home \\.${root}(?![\\w-])`).test(r.selector) &&
-          (root === 'hero-glow' || new RegExp(`\\.home \\.${root} \\*`).test(r.selector)) &&
+          r.selector.split(',').some((s) => new RegExp(`^\\.home \\.${root}$`).test(s.trim())) &&
+          (root === 'hero-glow' || r.selector.split(',').some((s) => new RegExp(`^\\.home \\.${root} \\*$`).test(s.trim()))) &&
           /animation:\s*none/.test(r.body) &&
           /transition:\s*none/.test(r.body),
       );
@@ -288,6 +307,20 @@ when('the built home page', () => {
         new RegExp(`@media\\(prefers-reduced-motion:reduce\\)\\{[^@]*\\.home\\.${root}[^{]*\\{[^}]*animation:none`),
       );
     }
+  });
+
+  it('turns the motion guard red for a rule that moves outside a scene or after the reduced-motion block', () => {
+    const base = sourceOf('src/styles/home.css');
+    const lights = (css: string): boolean => {
+      const { outside } = split(css);
+      return rulesOf(outside.replace(/@keyframes\s+[\w-]+\s*\{([\s\S]*?\})\s*\}/g, ''))
+        .filter((r) => moves(r.body) || dims(r.body))
+        .some((r) => r.selector.split(',').some((s) => scenesOf(s.trim()).length !== 1));
+    };
+    expect(lights(base), 'the page as it is').toBe(false);
+    expect(lights(`${base}\n.home .foot { transition: color 1s; }\n`), 'a transition at the end of the file').toBe(true);
+    expect(lights(`${base}\n@media (min-width: 1px) { .home .hero h1 { animation: drift 3s infinite; } }\n`), 'an animation in a media query at the end').toBe(true);
+    expect(lights(`${base}\n.home .foot { opacity: 0.4; }\n`), 'a rule that dims').toBe(true);
   });
 
   it('starts no motion of its own where the reader asked for less', () => {
@@ -310,23 +343,41 @@ when('the built home page', () => {
     expect(builtCss().replace(/\s+/g, '')).toContain(`--ground:${PALETTE.ground}`);
   });
 
-  it('sets every text colour at 4.5:1 on every ground it can sit on', () => {
+  it('sets every text colour at 4.5:1 on every ground it is set on', () => {
     const css = sourceOf('src/styles/home.css');
     const kebab = (name: string): string => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
     const hexOf = new Map(Object.entries(PALETTE).map(([k, v]) => [kebab(k), v as string]));
-    const grounds = ['ground', 'raised', 'surface', 'card', 'button', 'mint-ground', 'red-ground', 'accent-ground'];
-    // The colours that are text, by the `color:` declarations of the stylesheet.
+    // The text colours of the stylesheet, by its `color:` declarations, and the grounds it paints, by its `background`
+    // declarations that hold a palette variable: every pair of the two that can meet is held, by family.
     const text = new Set([...css.matchAll(/(?<![-\w])color:\s*var\(--([a-z-]+)\)/g)].map((m) => m[1] as string));
+    const grounds = new Set([...css.matchAll(/background(?:-color)?:\s*var\(--([a-z-]+)\)/g)].map((m) => m[1] as string));
+    for (const g of ['ground', 'plate', 'surface', 'card', 'button', 'accent-soft', 'amber-ground', 'red-ground', 'mint-ground', 'accent-ground']) {
+      grounds.add(g);
+    }
     expect(text.size).toBeGreaterThan(8);
-    text.delete('on-accent');
+    const neutral = ['ground', 'plate', 'surface', 'card', 'button', 'accent-soft', 'accent-ground'];
+    const meets: Record<string, string[]> = {
+      ink: [...neutral, 'red-ground', 'mint-ground'],
+      text: neutral,
+      soft: neutral,
+      muted: [...neutral, 'red-ground'],
+      faint: ['ground', 'plate', 'surface', 'accent-ground'],
+      accent: neutral,
+      mint: ['ground', 'plate', 'surface', 'card', 'mint-ground'],
+      red: ['ground', 'plate', 'surface', 'card', 'red-ground'],
+      amber: ['ground', 'plate', 'card', 'amber-ground'],
+      'on-accent': ['accent'],
+    };
     for (const colour of text) {
-      for (const ground of grounds) {
-        // A colour is only held to the grounds it is set on: the greens on the green ground, the red on the red one, the rest on the page's.
-        const family = /^mint|^red$/.test(colour) ? (colour === 'red' ? ['ground', 'red-ground'] : ['ground', 'surface', 'mint-ground']) : grounds.filter((g) => !/-ground$/.test(g) || g === 'accent-ground');
-        if (!family.includes(ground)) continue;
-        const ratio = contrastOf(hexOf.get(colour) as string, hexOf.get(ground) as string);
-        expect(ratio, `${colour} on ${ground}`).toBeGreaterThanOrEqual(4.5);
+      expect(meets[colour], `${colour} is a text colour the page sets, and this case holds it on its grounds`).toBeDefined();
+      for (const ground of meets[colour] ?? []) {
+        expect(contrastOf(hexOf.get(colour) as string, hexOf.get(ground) as string), `${colour} on ${ground}`).toBeGreaterThanOrEqual(4.5);
       }
+    }
+    // Every ground the page paints with a variable is one the table above knows, or a fill that holds text held above on it
+    // (the accent and the ink under the text over the accent) or none (the hairline, the mint and the red of a bar).
+    for (const ground of grounds) {
+      expect([...neutral, 'amber-ground', 'red-ground', 'mint-ground', 'accent', 'ink', 'line', 'mint', 'red'].includes(ground), `${ground} is a ground the page paints`).toBe(true);
     }
     expect(contrastOf(PALETTE.onAccent, PALETTE.accent), 'the text over the accent').toBeGreaterThanOrEqual(4.5);
     expect(contrastOf(PALETTE.onAccent, PALETTE.ink), 'the text over the accent on hover').toBeGreaterThanOrEqual(4.5);
@@ -426,7 +477,7 @@ when('the built home page', () => {
     const html = main();
     const outputs = /<div class="a0"><div class="console mono">[\s\S]*?<div class="verified">([^<]*)<\/div><div class="muted">([^<]*)<\/div><\/div><\/div><div class="a1"><div class="console mono broken"><div class="cmd">[\s\S]*?<\/div><div class="failed">([^<]*)<\/div><div class="muted">([^<]*)<\/div>/.exec(html);
     expect(outputs, 'the two outputs are in the illustration').not.toBeNull();
-    expect(textOf(html)).toContain('An illustration of two real outputs, captured from the verifier.');
+    expect(textOf(html)).toContain('An illustration of two real outputs, captured from the verifier');
     expect(html).toMatch(/<a href="\/record\/">Run it on this site's own record<\/a>/);
     const dir = mkdtempSync(join(tmpdir(), 'the-home-failure-'));
     try {
@@ -439,7 +490,13 @@ when('the built home page', () => {
       const tail = readdirSync(tails).map((d) => join(tails, d, '000001.jsonl')).find(existsSync) as string;
       const text = readFileSync(tail, 'utf8');
       const at = text.indexOf('"title":"') + '"title":"'.length;
-      writeFileSync(tail, text.slice(0, at) + (text[at] === 'Z' ? 'Y' : 'Z') + text.slice(at + 1));
+      const title = /^[^"\\]*(?:\\.[^"\\]*)*/.exec(text.slice(at))?.[0] ?? '';
+      const changed = text[at] === 'Z' ? 'Y' : 'Z';
+      writeFileSync(tail, text.slice(0, at) + changed + text.slice(at + 1));
+      // The words beside the outputs are the title that was changed and the character it was changed to, not invented ones.
+      const spoken = textOf(html).replace(/\s/g, '');
+      expect(spoken, 'the title before').toContain(`“${title.slice(0, 48)}…”`.replace(/\s/g, ''));
+      expect(spoken, 'the title after').toContain(`“${changed}${title.slice(1, 48)}…”`.replace(/\s/g, ''));
       const home = mkdtempSync(join(tmpdir(), 'the-home-failure-home-'));
       const ran = spawnSync(process.execPath, [join(ROOT, 'packages/code/dist/cli.js'), 'verify'], {
         cwd: tree,

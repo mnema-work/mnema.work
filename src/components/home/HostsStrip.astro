@@ -1,5 +1,5 @@
 ---
-interface Host { name: string; rung: string; logo?: { src: string; href: string; alt: string; width: number; height: number } }
+interface Host { name: string; rung: string; logo?: { src: string; href: string; alt: string; width: number; height: number; owner: string } }
 interface Props { hosts: Host[]; rungs: { letter: string; words: string }[] }
 const { hosts, rungs } = Astro.props;
 const tier: Record<string, string> = { d: 'top', c: 'mid' };
@@ -11,10 +11,12 @@ const ordered = [...hosts].sort((a, b) => b.rung.localeCompare(a.rung));
   <p class="mono legend">{rungs.map((r) => `${r.letter} · ${r.words}`).join('   ')}</p>
   <ul class="hosts mono">
     {ordered.map((host) => (
-      <>
-        {host.logo && <li class="mark"><a href={host.logo.href}><img src={host.logo.src} alt={host.logo.alt} width={host.logo.width} height={host.logo.height} loading="lazy" /></a></li>}
-        <li class={`host ${tier[host.rung] ?? 'low'}`}>{host.name} <b>{host.rung}</b></li>
-      </>
+      <li class="pair">
+        <ul>
+          {host.logo && <li class="mark"><a href={host.logo.href}><img src={host.logo.src} alt={host.logo.alt} width={host.logo.width} height={host.logo.height} loading="lazy" /></a></li>}
+          <li class={`host ${tier[host.rung] ?? 'low'}`}>{host.name} <b>{host.rung}</b></li>
+        </ul>
+      </li>
     ))}
   </ul>
 </div>

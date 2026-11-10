@@ -1,11 +1,12 @@
 ---
 import mark from '../../assets/mark-dark.svg?raw';
 interface Props {
+  owners: string[];
   links: { npm: string; marketplace: string; github: string };
   contact: { general: string; security: string };
   built: { version: string; sha: string; repoUrl: string };
 }
-const { links, contact, built } = Astro.props;
+const { owners, links, contact, built } = Astro.props;
 ---
 <footer class="foot">
   <div class="wrap">
@@ -34,7 +35,7 @@ const { links, contact, built } = Astro.props;
         <li class="mono">{contact.security}</li>
       </ul></div>
     </div>
-    <p class="marks">OpenCode and the OpenCode logo are trademarks of Anomaly. GitHub and the Invertocat logo are trademarks of GitHub, Inc. They are shown to say that mnema works with those products, and mnema is not theirs. Every other product name is its owner’s, shown by name only.</p>
+    <p class="marks">The logos beside the names of the hosts belong to their owners: {owners.join(', ')}. They identify the hosts mnema works with and imply no endorsement, either way. mnema is not theirs. A host with no logo is shown by its name, which is also its owner’s.</p>
     <p class="meta"><span>Apache-2.0</span><span>Tamper-evident, not tamper-proof.</span></p>
     <p class="the-build mono">
       mnema <span data-version>{built.version}</span> · commit{' '}

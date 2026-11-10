@@ -8,7 +8,7 @@ interface Props {
   reverse?: boolean;
   command: string;
   verdict: string[];
-  failure: string[];
+  failure: { lines: string[]; before: string; after: string };
 }
 const { id, n, kind, title, reverse = false, command, verdict, failure } = Astro.props;
 ---

@@ -32,7 +32,7 @@ describe('the sources of the logos, over fixtures', () => {
     writeFileSync(join(dir, 'SOURCES.md'), table);
     return { dir, done: () => rmSync(dir, { recursive: true, force: true }) };
   };
-  const logos = { Alpha: { file: 'alpha.svg', href: 'https://alpha.example', alt: 'Alpha', width: 10, height: 10 } };
+  const logos = { Alpha: { file: 'alpha.svg', href: 'https://alpha.example', alt: 'Alpha', width: 10, height: 10, owner: 'Alpha Inc.' } };
   const row = (file: string, host: string, hash: string): string => `| \`${file}\` | ${host} | https://alpha.example/${file} | 2026-11-09 | \`${hash}\` |`;
 
   it('has no fault for a logo whose file is there and whose row hashes it', () => {
@@ -95,7 +95,7 @@ describe('the logos this repository holds', () => {
       expect(readFileSync(join(SITE, HOSTS_DIR, row.file)).length, `${row.file} is not empty`).toBeGreaterThan(0);
       expect(sha256(readFileSync(join(SITE, HOSTS_DIR, row.file))), row.file).toBe(row.sha256);
     }
-    expect(readdirSync(join(SITE, HOSTS_DIR)).filter((f) => f !== 'SOURCES.md').sort()).toEqual(rows.map((r) => r.file).sort());
+    expect(readdirSync(join(SITE, HOSTS_DIR)).filter((f) => f !== 'SOURCES.md').sort()).toEqual([...new Set(rows.map((r) => r.file))].sort());
   });
 
   it('say, in the sources file, the day they were fetched, where from, and the rule that lets a third party show them', () => {
@@ -105,7 +105,10 @@ describe('the logos this repository holds', () => {
       expect(line, row.file).toMatch(/\| \d{4}-\d{2}-\d{2} \|/);
       expect(line, row.file).toMatch(/https:\/\/\S+/);
       const section = new RegExp(`## ${row.host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n([\\s\\S]*?)(?=\\n## |$)`).exec(text)?.[1] ?? '';
-      expect(section, `${row.host} has its rule quoted`).toMatch(/The rule, from https:\/\/\S+[\s\S]*?"[^"]{30,}"/);
+      // The rule of use, quoted from the vendor's page; or, where none was found, that said with where it was looked for.
+      expect(section, `${row.host} has its rule quoted, or says none was found`).toMatch(
+        /The rule, from https:\/\/\S+[\s\S]*?"[^"]{30,}"|The rule: (?:none found[\s\S]*https:\/\/|[\s\S]*?"[^"]{30,}")/,
+      );
       expect(section, `${row.host} says what this site does`).toMatch(/What this site does:/);
     }
   });
@@ -120,8 +123,9 @@ when('the built home page', () => {
   it('shows each host of the README: by its logo and its name where it has a logo, by its name alone where it has none', () => {
     const list = hosts();
     expect(list.length).toBeGreaterThanOrEqual(12);
+    expect(list.filter(({ name }) => !(name in LOGOS)).map((h) => h.name), 'the hosts shown by name alone').toEqual(['Codex']);
     for (const { name } of list) {
-      const li = new RegExp(`(<li class="mark"><a href="([^"]+)"><img src="([^"]+)" alt="([^"]*)" width="\\d+" height="\\d+" loading="lazy"></a></li>)?<li class="host [a-z]+">${escape(name)} <b>[a-d]</b></li>`).exec(main());
+      const li = new RegExp(`(<li class="mark"><a href="([^"]+)"><img src="([^"]+)" alt(?:="([^"]*)")? width="\\d+" height="\\d+" loading="lazy"></a></li>)?<li class="host [a-z]+">${escape(name)} <b>[a-d]</b></li>`).exec(main());
       expect(li, `${name} is shown`).not.toBeNull();
       const logo = (LOGOS as Record<string, { file: string; href: string; alt: string }>)[name];
       if (logo === undefined) {
@@ -129,7 +133,7 @@ when('the built home page', () => {
       } else {
         expect(li?.[3], `${name} has its logo`).toBe(`/${HOSTS_DIR}/${logo.file}`);
         expect(li?.[2], `${name}'s logo links where the vendor's rule says`).toBe(logo.href);
-        expect(li?.[4]).toBe(logo.alt);
+        expect(li?.[4] ?? '').toBe(logo.alt);
       }
     }
   });
@@ -138,15 +142,16 @@ when('the built home page', () => {
     for (const row of rowsOf(sources())) {
       expect(sha256(readFileSync(join(DIST, HOSTS_DIR, row.file))), `${row.file} as served`).toBe(row.sha256);
     }
-    expect(readdirSync(join(DIST, HOSTS_DIR)).sort()).toEqual(rowsOf(sources()).map((r) => r.file).sort());
+    expect(readdirSync(join(DIST, HOSTS_DIR)).sort()).toEqual([...new Set(rowsOf(sources()).map((r) => r.file))].sort());
     const pictures = [...main().matchAll(/<img\b[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1]);
-    expect(pictures.length).toBeGreaterThanOrEqual(2);
+    expect(pictures.length).toBeGreaterThanOrEqual(11);
     for (const src of pictures) expect(rowsOf(sources()).map((r) => `/${HOSTS_DIR}/${r.file}`), `${src} is a logo with a source`).toContain(src);
   });
 
   it('names, in the footer, the owner of each logo it shows', () => {
     const footer = /<p class="marks">([^<]*)<\/p>/.exec(page())?.[1] ?? '';
-    const owners: Record<string, string> = { OpenCode: 'Anomaly', 'Copilot CLI': 'GitHub, Inc.' };
-    for (const host of Object.keys(LOGOS)) expect(footer, `the owner of ${host}'s logo`).toContain(owners[host] ?? '<no owner written for this host>');
+    for (const [host, logo] of Object.entries(LOGOS)) expect(footer, `the owner of ${host}'s logo`).toContain(logo.owner);
+    expect(footer).toContain('imply no endorsement');
+    expect(footer).toContain('identify the hosts mnema works with');
   });
 });

@@ -150,7 +150,22 @@ when('the built home page', () => {
 
   it('names, in the footer, the owner of each logo it shows', () => {
     const footer = /<p class="marks">([^<]*)<\/p>/.exec(page())?.[1] ?? '';
-    for (const [host, logo] of Object.entries(LOGOS)) expect(footer, `the owner of ${host}'s logo`).toContain(logo.owner);
+    // The owners are pinned here, written out: a logo added or an owner changed in the build's list fails this case.
+    const owners: Record<string, string> = {
+      'Claude Code': 'Anthropic',
+      'VS Code': 'Microsoft',
+      'Copilot CLI': 'GitHub, Inc.',
+      'Cursor CLI': 'Anysphere',
+      OpenCode: 'Anomaly',
+      'Gemini CLI': 'Google',
+      'Qwen Code': 'the Qwen Code project',
+      Cursor: 'Anysphere',
+      'Antigravity CLI': 'Google',
+      'Factory Droid': 'Factory',
+      Goose: 'the Goose project',
+    };
+    expect(Object.fromEntries(Object.entries(LOGOS).map(([host, logo]) => [host, logo.owner]))).toEqual(owners);
+    for (const owner of new Set(Object.values(owners))) expect(footer, `the owner ${owner}`).toContain(owner);
     expect(footer).toContain('imply no endorsement');
     expect(footer).toContain('identify the hosts mnema works with');
   });

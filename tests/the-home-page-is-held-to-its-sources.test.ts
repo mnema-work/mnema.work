@@ -247,9 +247,11 @@ when('the built home page', () => {
   ];
   const rulesOf = (css: string): { selector: string; body: string }[] =>
     [...css.matchAll(/([^{}@]+)\{([^{}]*)\}/g)].map((m) => ({ selector: (m[1] ?? '').trim(), body: m[2] ?? '' }));
-  const moves = (body: string): boolean => /\banimation(?:-name)?\s*:\s*(?!none)[^;}]+|\btransition\s*:\s*(?!none)[^;}]+/.test(body);
-  /** The opacity a rule gives, when it dims (less than 1). */
-  const dims = (body: string): boolean => [...body.matchAll(/(?<![-\w])opacity\s*:\s*([\d.]+)/g)].some((m) => Number(m[1]) < 1);
+  // A declaration that moves: the shorthands and every longhand (`animation-delay`, `transition-property`…) that is not `none`.
+  const moves = (body: string): boolean => /(?<![-\w])(?:animation|transition)(?:-[a-z-]+)?\s*:\s*(?!none\b)[^;}]+/.test(body);
+  /** The opacity a rule gives, when it dims (less than 1), as a number or as a percentage. */
+  const dims = (body: string): boolean =>
+    [...body.matchAll(/(?<![-\w])opacity\s*:\s*([\d.]+)(%?)/g)].some((m) => Number(m[1]) / (m[2] === '%' ? 100 : 1) < 1);
   /** The scenes a selector part is inside, by the classes it names. */
   const scenesOf = (part: string): string[] =>
     SCENES.filter(([, , context]) => new RegExp(`\\.(?:${context})(?![\\w-])`).test(part)).map(([, root]) => root);
@@ -271,7 +273,7 @@ when('the built home page', () => {
   };
 
   it('moves only inside a scene, moves in every scene, dims only inside a scene, and none of it under prefers-reduced-motion', () => {
-    const css = sourceOf('src/styles/home.css');
+    const css = sourceOf('src/styles/home.css').replace(/\/\*[\s\S]*?\*\//g, '');
     const { outside, reduced } = split(css);
     const rules = rulesOf(outside.replace(/@keyframes\s+[\w-]+\s*\{([\s\S]*?\})\s*\}/g, ''));
     const motion = rules.filter((r) => moves(r.body));
@@ -283,10 +285,32 @@ when('the built home page', () => {
         expect(scenesOf(part), `${part} moves or dims and is not inside exactly one scene`).toHaveLength(1);
       }
     }
-    // A keyframe that dims is named by an animation of a rule inside a scene (the rules above), and one that does not end at
-    // full opacity is the swap of two readings, so its element is described by its scene's aria-label.
     expect(css, 'no smooth scrolling').not.toMatch(/scroll-behavior\s*:\s*smooth/);
     const stillRules = rulesOf(reduced);
+    // Inside the reduced-motion block only what stops motion: none, and a transform put back, and full opacity.
+    expect(stillRules.length, 'the reduced-motion block has rules').toBeGreaterThan(5);
+    for (const rule of stillRules) {
+      for (const declaration of rule.body.split(';').map((d) => d.trim()).filter(Boolean)) {
+        expect(
+          /^(?:animation|transition|transform)\s*:\s*none(?:\s*!important)?$|^opacity\s*:\s*1(?:\s*!important)?$/.test(declaration),
+          `${rule.selector} under prefers-reduced-motion says "${declaration}", which is not a stop`,
+        ).toBe(true);
+      }
+    }
+    // A keyframe that changes opacity is named only by rules inside a scene that is described by a role and an aria-label.
+    const fading = [...outside.matchAll(/@keyframes\s+([\w-]+)\s*\{([\s\S]*?\})\s*\}/g)].filter((m) => /opacity\s*:/.test(m[2] ?? '')).map((m) => m[1] as string);
+    expect(fading.length, 'the page has keyframes that change opacity').toBeGreaterThan(3);
+    const described = (root: string): boolean =>
+      new RegExp(`<div class="[^"]*\\b${root}\\b[^"]*" role="(?:img|group)" aria-label="[^"]{20,}"`).test(page());
+    for (const keyframes of fading) {
+      const users = rules.filter((r) => new RegExp(`(?<![-\\w])animation(?:-name)?\\s*:[^;}]*(?<![-\\w])${keyframes}(?![-\\w])`).test(r.body));
+      expect(users.length, `${keyframes} is used`).toBeGreaterThan(0);
+      for (const user of users) {
+        for (const part of user.selector.split(',').map((s) => s.trim())) {
+          for (const root of scenesOf(part)) expect(described(root), `${keyframes} changes opacity inside ${root}, which has no role and aria-label`).toBe(true);
+        }
+      }
+    }
     for (const [name, root] of SCENES) {
       const own = motion.filter((r) => r.selector.split(',').some((s) => scenesOf(s.trim()).includes(root)));
       expect(own.length, `${name} moves`).toBeGreaterThan(0);
@@ -310,7 +334,7 @@ when('the built home page', () => {
   });
 
   it('turns the motion guard red for a rule that moves outside a scene or after the reduced-motion block', () => {
-    const base = sourceOf('src/styles/home.css');
+    const base = sourceOf('src/styles/home.css').replace(/\/\*[\s\S]*?\*\//g, '');
     const lights = (css: string): boolean => {
       const { outside } = split(css);
       return rulesOf(outside.replace(/@keyframes\s+[\w-]+\s*\{([\s\S]*?\})\s*\}/g, ''))

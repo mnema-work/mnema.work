@@ -9,6 +9,7 @@ import {
   copyOf,
   docNames,
   docsIndexOf,
+  headerLinksOf,
   factsOf,
   headOfTheRecord,
   llmsTxt,
@@ -18,6 +19,7 @@ import {
   themeCss,
   sidebarOf,
   sitemapWith,
+  stepsOf,
   verifyCommandOf,
   withoutWhatIsNotOnTheSite,
 } from './the-pages.mjs';
@@ -117,8 +119,10 @@ export async function prepare({ root, site = SITE, check = false }) {
   const sidebar = sidebarOf({ readme, facts, docs, read, record: { label: copy('record'), link: '/record/' } });
   writeFileSync(
     into('src/content/docs/docs/index.md'),
-    docsIndexOf({ sidebar, title: copy('docs-title'), description: copy('docs-description') }),
+    docsIndexOf({ sidebar, title: copy('docs-title'), description: copy('docs-description'), copy, steps: stepsOf(read('first-record')) }),
   );
+  // The two links the header carries beside GitHub: read by `src/components/SocialIcons.astro`.
+  writeFileSync(into('src/generated/header.json'), `${JSON.stringify(headerLinksOf({ sidebar, docs: copy('header-docs') }))}\n`);
 
   // The page that is not a page of `docs/`: a tracked template, filled the same way. The home page is not written
   // here: it is `src/pages/index.astro`, which reads `src/generated/home.json`.

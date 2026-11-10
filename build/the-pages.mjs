@@ -11,6 +11,7 @@
 
 import { posix } from 'node:path';
 import { PRODUCT_URL, SITE_URL } from './the-site.mjs';
+import { iconOf } from '../src/icons.mjs';
 
 /** The Markdown outside fenced code: `fn` is called for each such run of lines, the fences pass through. */
 function outsideFences(markdown, fn) {
@@ -398,17 +399,90 @@ export function sidebarOf({ readme, facts, docs, record, read }) {
   return groups;
 }
 
+/** The card of each group of the README's Docs: its icon (`src/icons.mjs`) and the entry of `copy.md` that is its sentence. */
+export const GROUP_CARDS = Object.freeze({
+  'Get started': { icon: 'arrow', copy: 'docs-get-started' },
+  Learn: { icon: 'file', copy: 'docs-learn' },
+  Reference: { icon: 'folder', copy: 'docs-reference' },
+  Project: { icon: 'seal', copy: 'docs-project' },
+});
+
+/** The first-record page, which the first card links, by the address the sidebar gives it. */
+export const FIRST_RECORD_LINK = '/docs/first-record/';
+
+/** The README group whose first page the header's second link goes to. */
+export const REFERENCE_GROUP = 'Reference';
+
+const escapeHtml = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** The steps of the first-record page: its `## 1. Label` to `## N. Label` headings outside code, without the numbers, in order. */
+export function stepsOf(markdown) {
+  const steps = [];
+  outsideFences(markdown, (text) => {
+    for (const m of text.matchAll(/^## \d+\. (.+)$/gm)) steps.push(m[1].trim());
+    return text;
+  });
+  if (steps.length === 0) throw new Error('the first-record page has no numbered steps: its headings are `## 1. Label`, `## 2. Label`, ...');
+  return steps;
+}
+
+/** The first link of an item of the sidebar: its own, or the first of the group it holds. */
+const firstLinkOf = (item) => item.link ?? firstLinkOf(item.items[0]);
+
+/** Every leaf of a sidebar (an item with a link), in order. */
+const leavesOf = (items) => items.flatMap((i) => (i.items === undefined ? [i] : leavesOf(i.items)));
+
 /**
- * The page at /docs/: the table of contents the sidebar already is, as a page a link can point at. Its groups and their
- * links are the README's Docs section and the record page (`sidebarOf`), its title and description two entries of
- * `copy.md`; it has no sentence of its own.
+ * The page at /docs/: a card for the first record (the label of its link, its steps, and two entries of `copy.md`) and a
+ * card for each group of the README (its icon, its sentence from `copy.md`, and its links, a group of a folder as the one
+ * link to its index page, the rest being in the sidebar). The title and the lede are `copy.md` too: the page has no
+ * sentence of its own, and `copy` is the one function that takes an entry, so an entry nothing takes is found. A group
+ * the cards do not know (`GROUP_CARDS`: a README of an older release names others) gets a card with the generic icon and
+ * no sentence, and a known group the README lacks gets none; a sidebar with no first-record page stops the build.
+ * @param {{ sidebar: any[], title: string, description: string, copy: (key: string) => string, steps: string[] }} options
  */
-export function docsIndexOf({ sidebar, title, description }) {
-  const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\n---\n\n`;
-  const list = (items, indent) =>
-    items.map((i) => (i.items === undefined ? `${indent}- [${i.label}](${i.link})` : `${indent}- ${i.label}\n${list(i.items, `${indent}  `)}`)).join('\n');
-  const groups = sidebar.map((g) => `## ${g.label}\n\n${list(g.items, '')}\n`);
-  return front + groups.join('\n');
+export function docsIndexOf({ sidebar, title, description, copy, steps }) {
+  const first = leavesOf(sidebar.flatMap((g) => g.items)).find((i) => i.link === FIRST_RECORD_LINK);
+  if (first === undefined) throw new Error(`the sidebar has no page at ${FIRST_RECORD_LINK}, which the first card links`);
+  const link = (item) => `<a href="${escapeHtml(firstLinkOf(item))}">${escapeHtml(item.label)}</a>`;
+  const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\ntableOfContents: false\n---\n\n`;
+  const lede = `<p class="docs-lede">${escapeHtml(copy('docs-lede'))}</p>`;
+  const card = [
+    `<a class="docs-first" href="${FIRST_RECORD_LINK}">`,
+    '<div>',
+    `<div class="docs-kicker">${escapeHtml(copy('docs-start-here'))}</div>`,
+    `<h2>${escapeHtml(first.label)}</h2>`,
+    `<p>${escapeHtml(copy('docs-first-record'))}</p>`,
+    `<div class="docs-go">${escapeHtml(copy('docs-go'))} ${iconOf('arrow')}</div>`,
+    '</div>',
+    `<ol>${steps.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ol>`,
+    '</a>',
+  ].join('\n');
+  // Every sentence of a card is taken, the group in the README or not: the entry belongs to the card, not to the README.
+  const sentences = new Map(Object.entries(GROUP_CARDS).map(([label, known]) => [label, copy(known.copy)]));
+  const groups = sidebar.map((g) => {
+    const icon = GROUP_CARDS[g.label]?.icon ?? 'file';
+    const sentence = sentences.get(g.label);
+    return [
+      '<div class="docs-card">',
+      `<div class="docs-icon">${iconOf(icon)}</div>`,
+      `<h2>${escapeHtml(g.label)}</h2>`,
+      ...(sentence === undefined ? [] : [`<p>${escapeHtml(sentence)}</p>`]),
+      `<ul>${g.items.map((i) => `<li>${link(i)}</li>`).join('')}</ul>`,
+      '</div>',
+    ].join('\n');
+  });
+  // One block of HTML with no blank line in it, so the Markdown reader hands it over as it is.
+  return `${front}<div class="docs-index not-content">\n${lede}\n${card}\n<div class="docs-cards">\n${groups.join('\n')}\n</div>\n</div>\n`;
+}
+
+/** The links of the header beside GitHub: /docs/, and the first page of the README's Reference group when it has one. */
+export function headerLinksOf({ sidebar, docs }) {
+  const reference = sidebar.find((g) => g.label === REFERENCE_GROUP);
+  return [
+    { label: docs, link: '/docs/' },
+    ...(reference === undefined ? [] : [{ label: reference.label, link: firstLinkOf(reference.items[0]) }]),
+  ];
 }
 
 /** The pages `docs/` holds, by path without `.md`: a page in a folder is named `<folder>/<page>`. */

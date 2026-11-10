@@ -1,0 +1,17 @@
+---
+// Starlight's own social icons (GitHub), with the site's links in front of them: the header of the docs carries Docs and
+// Reference beside GitHub, as the home page's bar does. They sit in the header's right group, which Starlight shows from
+// 50rem up: below that the sidebar, behind the menu button, is the way around. The links are written by the build
+// (`src/generated/header.json`, from the README's groups), so no address and no label is typed here.
+import Default from '@astrojs/starlight/components/SocialIcons.astro';
+import links from '../generated/header.json';
+
+const here = Astro.url.pathname;
+const inReference = here.startsWith('/docs/reference/');
+const current = (link: string): boolean => (link === '/docs/' ? here.startsWith('/docs/') && !inReference : here.startsWith(link.replace(/[^/]+\/$/, '')));
+---
+
+<nav class="header-links" aria-label="Sections">
+  {links.map((l) => <a href={l.link} aria-current={current(l.link) ? 'page' : undefined}>{l.label}</a>)}
+</nav>
+<Default {...Astro.props}><slot /></Default>

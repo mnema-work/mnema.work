@@ -12,14 +12,14 @@ page's footer says that the logos identify the hosts mnema works with and imply 
 | `claude-icon.svg` | Claude Code | https://claude.com/icon.svg (the icon claude.com/product/claude-code serves) | 2026-11-09 | `b150888bc7257af83e3b85d3c2be4294f88986026f8168f6c12fc1fde6697350` |
 | `vscode.svg` | VS Code | `vscode.svg` in https://code.visualstudio.com/assets/branding/visual-studio-code-icons.zip (linked from https://code.visualstudio.com/brand; the zip is sha256 `04c5292a117bbc619f1ce574cc59b6c5e2e26374d6e64b92619e848612f2d9cb`) | 2026-11-09 | `74ad401c6487a0dc5af1f6b2935556ab2d3553ae45effc7e1697b4d117d046b6` |
 | `GitHub_Invertocat_White.svg` | Copilot CLI | `GitHub Logos/SVG/GitHub_Invertocat_White.svg` in https://brand.github.com/GitHub_Logos.zip (from https://brand.github.com/foundations/logo; the zip is sha256 `e2a67d6cc51d990a52c46c1cf6bcab688db4830982174bca50e0be7a5c2f3194`) | 2026-11-09 | `ccd84c89b1056345608fc3489357f8acc7397e49a3cdc2d418b6c8016911d47b` |
-| `cursor-brand-logo-12.svg` | Cursor CLI | https://ptht05hbb1ssoooe.public.blob.vercel-storage.com/assets/brand/brand-logo-12.svg (the file https://cursor.com/brand publishes) | 2026-11-09 | `b9cf8ee4b04dda0bb2c375f884ff29ebc4c0eb66c054bd131cdc647e17fcb199` |
-| `cursor-brand-logo-12.svg` | Cursor | https://ptht05hbb1ssoooe.public.blob.vercel-storage.com/assets/brand/brand-logo-12.svg (the file https://cursor.com/brand publishes) | 2026-11-09 | `b9cf8ee4b04dda0bb2c375f884ff29ebc4c0eb66c054bd131cdc647e17fcb199` |
-| `opencode-works-with-a-dark-20.svg` | OpenCode | https://opencode.ai/brand/badges/opencode-works-with-a-dark-20.svg (from https://opencode.ai/brand) | 2026-11-09 | `b78a4caf3a5e15f9a35f5d079c07e413389bab99a6f40c72d84b08341396d0ca` |
+| `cursor-cube-2d-dark.svg` | Cursor CLI | `General Logos/Cube/SVG/CUBE_2D_DARK.svg` in https://ptht05hbb1ssoooe.public.blob.vercel-storage.com/assets/brand/cursor-brand-assets.zip (the same zip as the light file, sha256 `97488a7751914e60f9ff532bc33810cdeaebdddc017548abe6ca2bc29bbc3928`; rule quoted from https://cursor.com/brand: "Refer to us as Cursor. Not Cursor AI or Cursor Code.") | 2026-11-10 | `cd0e3e5d8991a4cdd4577f8896cd063105207665165c73e25a1ff918dd367eb7` |
+| `cursor-cube-2d-dark.svg` | Cursor | `General Logos/Cube/SVG/CUBE_2D_DARK.svg` in https://ptht05hbb1ssoooe.public.blob.vercel-storage.com/assets/brand/cursor-brand-assets.zip (the same zip as the light file, sha256 `97488a7751914e60f9ff532bc33810cdeaebdddc017548abe6ca2bc29bbc3928`; rule quoted from https://cursor.com/brand: "Refer to us as Cursor. Not Cursor AI or Cursor Code.") | 2026-11-10 | `cd0e3e5d8991a4cdd4577f8896cd063105207665165c73e25a1ff918dd367eb7` |
+| `opencode-logo-transparent-dark.svg` | OpenCode | https://opencode.ai/brand/files/opencode-logo-transparent-dark.svg (listed on https://opencode.ai/brand) | 2026-11-10 | `502ff18efbef0432d8a702481669767c0738d744d18c45d6c3bd3b776d2d6a8e` |
 | `gemini-cli-icon.png` | Gemini CLI | https://raw.githubusercontent.com/google-gemini/gemini-cli/1930f25394c4b6338b64ffdb43083fca41614798/packages/vscode-ide-companion/assets/icon.png (the vendor's own repository) | 2026-11-09 | `351e9f5b1bf863d738cd7be4ed040a625a1419450ae7fc490143e4042b7c2438` |
 | `qwen-code-logo.svg` | Qwen Code | https://raw.githubusercontent.com/QwenLM/qwen-code/79a60bc1e2a2114e953de7e0f5d8f559d82144bf/packages/desktop/bootstrap/qwen-code-logo.svg (the vendor's own repository) | 2026-11-09 | `24156c849c9124505e13b38c6583a9d5d85a1f57d996c324d967f480a4d88696` |
 | `antigravity-favicon.svg` | Antigravity CLI | https://antigravity.google/favicon.svg (the icon antigravity.google serves) | 2026-11-09 | `de7911c3d206a3d2fe3d5b4e76e84b185c581d7a259406f64db247b5b824f02e` |
-| `factory-favicon.svg` | Factory Droid | https://raw.githubusercontent.com/Factory-AI/factory/892925c655a97e7a0bc7d558236015ebb22cb214/docs/favicon.svg (the vendor's own repository) | 2026-11-09 | `4a6e2ad6af6635472cbf4a4e5e25046b2453793bf2be8a9b9f29c3cb88adc0cf` |
-| `logo_dark.png` | Goose | https://raw.githubusercontent.com/aaif-goose/goose/72b8db883ff827f5aa0a0955e2007d1407f5d9b9/documentation/static/img/logo_dark.png (the project's own repository: the white mark, for a dark page) | 2026-11-09 | `2c65dc076e4de0726755ebe9f69b7f5a87e6e724a3580663f1b6b1d7ded66cfc` |
+| `factory-docs-favicon.svg` | Factory Droid | https://docs.factory.ai/favicon.svg (the icon docs.factory.ai serves; the same bytes as https://factory.com/icon.svg; no rule of use found: https://factory.ai/brand and https://factory.ai/press answer 404 and docs.factory.ai has no brand page) | 2026-11-10 | `416ea4962d7b0b8be8bec7f7190c13c22d5f20fdcac401aa72886fd5c81d2fb2` |
+| `logo_dark.png` | Goose | https://raw.githubusercontent.com/aaif-goose/goose/72b8db883ff827f5aa0a0955e2007d1407f5d9b9/documentation/static/img/logo_dark.png (the project's own repository: the white mark; the same file as before, same sha256; no rule of use found: the home page https://goose-docs.ai and the repository tree at this commit have no brand or logo guideline) | 2026-11-10 | `2c65dc076e4de0726755ebe9f69b7f5a87e6e724a3580663f1b6b1d7ded66cfc` |
 
 ## Claude Code
 
@@ -43,19 +43,19 @@ What this site does: shows the Invertocat in white (the page is dark), unmodifie
 
 The rule, from https://cursor.com/brand: "Logos are available in 2D (default) and 2.5D (for larger applications), in horizontal lockup (preferred), vertical lockup, or separately as cube or wordmark." and "Name Refer to us as Cursor. Not Cursor AI or Cursor Code." The page states no rule of use by third parties.
 
-What this site does: shows the cube in its rounded-square app icon, from the files the page publishes, unmodified, beside the name "Cursor CLI" in text. Cursor CLI and Cursor are one vendor and one mark.
+What this site does: shows the cube (the 2D dark file the page publishes), unmodified, at the same height as every other mark, beside the name "Cursor CLI" in text. Cursor CLI and Cursor are one vendor and one mark.
 
 ## Cursor
 
 The rule, from https://cursor.com/brand: "Logos are available in 2D (default) and 2.5D (for larger applications), in horizontal lockup (preferred), vertical lockup, or separately as cube or wordmark." and "Name Refer to us as Cursor. Not Cursor AI or Cursor Code." The page states no rule of use by third parties.
 
-What this site does: shows the cube in its rounded-square app icon, from the files the page publishes, unmodified, beside the name "Cursor" in text. Cursor CLI and Cursor are one vendor and one mark.
+What this site does: shows the cube (the 2D dark file the page publishes), unmodified, at the same height as every other mark, beside the name "Cursor" in text. Cursor CLI and Cursor are one vendor and one mark.
 
 ## OpenCode
 
 The rule, from https://opencode.ai/brand (Integrations): "Plugins, providers and tools that work with OpenCode, and projects built with it, can say so. Use a badge or a partner lockup, and name your project so it is clear that it is yours." and "Put a badge in your README, docs or website and link it to opencode.ai. Pick the light or dark file for your background (the HTML switches by itself), and do not change the colors or the text." The same page says: "OpenCode and the OpenCode logo are trademarks of Anomaly. Do not use them to suggest that Anomaly endorses or sponsors you, in your product or company name, or on merchandise without permission."
 
-What this site does: shows the "Works with" badge, in its dark file (the page is dark), at its own size and colours, linked to https://opencode.ai, beside the name of the host, which is the page's own text and not part of the badge.
+What this site does: shows the logo file of the brand page (opencode-logo-transparent-dark.svg, for a dark page), unmodified, at the same height as every other mark, with no width set so it is not stretched or squashed, linked to https://opencode.ai, beside the name of the host in text. It is the logo, not the "Works with" badge.
 
 ## Gemini CLI
 
@@ -77,9 +77,9 @@ What this site does: shows the logo file of the project's own repository, unmodi
 
 ## Factory Droid
 
-The rule: none found. https://factory.ai/brand redirects to https://factory.com/brand, which answered 404 on 2026-11-09; the repository (https://github.com/Factory-AI/factory) holds no brand guideline in the files searched by name.
+The rule: none found. https://factory.ai/brand and https://factory.ai/press answer 404, and docs.factory.ai has no brand page.
 
-What this site does: shows the favicon of the vendor's own repository, unmodified, beside the name "Factory Droid" in text.
+What this site does: shows the icon docs.factory.ai serves (the same bytes as https://factory.com/icon.svg), unmodified, beside the name "Factory Droid" in text.
 
 ## Goose
 

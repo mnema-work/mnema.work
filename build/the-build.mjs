@@ -145,7 +145,7 @@ export async function prepare({ root, site = SITE, check = false }) {
   const failure = check ? null : theFailureOfTheCommit({ root, sha: facts.sha, command: verifyCommandOf(readme) });
   const refusal = check ? null : await theRefusalOfTheBinary({ root });
   const hosts = hostsOf(readme);
-  const shown = withLogos(hosts.hosts, { dir: join(site, HOSTS_DIR) });
+  const shown = withLogos(hosts.hosts, { dir: join(site, HOSTS_DIR), root });
   writeFileSync(
     into('src/generated/home.json'),
     `${JSON.stringify(

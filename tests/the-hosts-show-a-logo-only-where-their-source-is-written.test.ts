@@ -13,11 +13,11 @@
  * WHAT IT DOES NOT CHECK: that a vendor's guidelines still say what the row quotes (a person reads the page again).
  */
 
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { faultsOf, HOSTS_DIR, LOGOS, rowsOf, sha256, SOURCES, withLogos } from '../build/the-hosts.mjs';
+import { faultsAgainstProduct, faultsOf, HOSTS_DIR, LOGOS, PRODUCT_HOSTS_DIR, rowsOf, sha256, SOURCES, withLogos } from '../build/the-hosts.mjs';
 import { hostsOf } from '../build/the-home.mjs';
 import { DIST, ROOT, readText, SITE } from './support/reading-the-site.js';
 
@@ -82,6 +82,35 @@ describe('the sources of the logos, over fixtures', () => {
       expect(() => withLogos([{ name: 'Beta', rung: 'b' }], { logos, dir: ok.dir })).toThrow(/not a host of the README/);
     } finally {
       ok.done();
+    }
+  });
+});
+
+describe('the logos this repository holds, against the product it is built from', () => {
+  it('are the product\'s own files of the checkout being built, byte for byte, with the hashes its SOURCES.md gives', () => {
+    expect(faultsAgainstProduct({ root: ROOT, sources: sources() })).toEqual([]);
+    expect(existsSync(join(ROOT, PRODUCT_HOSTS_DIR, 'SOURCES.md')), 'the checkout has the product\'s table').toBe(true);
+  });
+
+  it('names a file the product does not hold, a file whose bytes differ, a hash that differs and a checkout with no folder', () => {
+    const product = mkdtempSync(join(tmpdir(), 'the-product-'));
+    const site = mkdtempSync(join(tmpdir(), 'the-site-'));
+    try {
+      expect(faultsAgainstProduct({ root: product, dir: site, sources: '' }).join('\n')).toMatch(/have nothing to equal/);
+      mkdirSync(join(product, PRODUCT_HOSTS_DIR), { recursive: true });
+      writeFileSync(join(product, PRODUCT_HOSTS_DIR, 'a.svg'), 'x');
+      writeFileSync(join(product, PRODUCT_HOSTS_DIR, 'SOURCES.md'), `| \`a.svg\` | A | https://a.example | 2026-11-09 | \`${sha256('x')}\` |\n`);
+      writeFileSync(join(site, 'a.svg'), 'x');
+      writeFileSync(join(site, 'b.svg'), 'y');
+      const table = `| \`a.svg\` | A | https://a.example | 2026-11-09 | \`${sha256('x')}\` |\n| \`b.svg\` | B | https://b.example | 2026-11-09 | \`${sha256('y')}\` |`;
+      expect(faultsAgainstProduct({ root: product, dir: site, sources: table }).join('\n')).toMatch(/b\.svg is not in the product's/);
+      writeFileSync(join(site, 'a.svg'), 'changed');
+      expect(faultsAgainstProduct({ root: product, dir: site, sources: table }).join('\n')).toMatch(/a\.svg is not the product's .*byte for byte/);
+      const rehashed = table.replace(sha256('x'), sha256('changed'));
+      expect(faultsAgainstProduct({ root: product, dir: site, sources: rehashed }).join('\n')).toMatch(/hashes a\.svg as/);
+    } finally {
+      rmSync(product, { recursive: true, force: true });
+      rmSync(site, { recursive: true, force: true });
     }
   });
 });

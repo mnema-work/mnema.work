@@ -273,4 +273,19 @@ h1, h2, h3, h4, .site-title {
 
 .sl-markdown-content td:first-child code {
   color: var(--sl-color-text-accent);
+  white-space: nowrap;
+}
+
+/* The table takes the width of the page, and the first column the width of its longest name: a flag and its value stay on one line.
+   Narrower than that Starlight's own scrolling block is kept, so the second column is reached by scrolling and not clipped. */
+@media (min-width: 50rem) {
+  .sl-markdown-content table {
+    display: table;
+    width: 100%;
+  }
+}
+
+.sl-markdown-content td:first-child {
+  width: 1%;
+  white-space: nowrap;
 }

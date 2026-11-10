@@ -264,6 +264,20 @@ when('the built site', () => {
     expect(blocks, 'the sweep read the prose').toBeGreaterThan(1000);
   });
 
+  it('keeps every flag of a page as the source writes it: a `--stdin` is never turned into a dash and a word', () => {
+    // The Markdown typographer turns `--` into a dash, and the block guard above reads letters and numbers only, so it cannot see it.
+    let flags = 0;
+    for (const name of names) {
+      const source = readText(join(ROOT, 'docs', `${name}.md`));
+      const page = textOf(html(`docs/${name}/index.html`));
+      for (const flag of new Set(source.match(/(?<![-\w])--[a-z][a-z0-9-]*/g) ?? [])) {
+        flags++;
+        expect(page.includes(flag), `docs/${name}.md writes ${flag} and the built page does not`).toBe(true);
+      }
+    }
+    expect(flags, 'the sweep found flags').toBeGreaterThan(100);
+  });
+
   /** The README's Quick start: the command on its one line that starts with `mnema verify`, up to the `#`. */
   const verifyCommandInReadme = (): string => {
     const quick = /## Quick start\n[\s\S]*?```sh\n([\s\S]*?)\n```/.exec(

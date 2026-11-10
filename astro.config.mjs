@@ -24,6 +24,8 @@ export default defineConfig({
   site: facts.siteUrl,
   // The docs addresses that moved keep answering, with a page that sends the reader on (build/the-moved.mjs).
   redirects: redirectsFor(docs),
+  // The pages are the product's Markdown as written: a typographer would turn `--stdin` into a dash and a quote into a curly one.
+  markdown: { smartypants: false },
   integrations: [
     starlight({
       title: 'mnema',

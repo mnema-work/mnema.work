@@ -29,7 +29,7 @@ export const LOGOS = Object.freeze({
   Cursor: { file: 'cursor-brand-logo-12.svg', href: 'https://cursor.com', alt: '', width: 20, height: 20, owner: 'Anysphere' },
   'Antigravity CLI': { file: 'antigravity-favicon.svg', href: 'https://antigravity.google', alt: '', width: 20, height: 20, owner: 'Google' },
   'Factory Droid': { file: 'factory-favicon.svg', href: 'https://github.com/Factory-AI/factory', alt: '', width: 20, height: 20, owner: 'Factory' },
-  Goose: { file: 'goose-logo.svg', href: 'https://github.com/aaif-goose/goose', alt: '', width: 20, height: 20, owner: 'the Goose project' },
+  Goose: { file: 'logo_dark.png', href: 'https://github.com/aaif-goose/goose', alt: '', width: 20, height: 20, owner: 'the Goose project' },
 });
 
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');

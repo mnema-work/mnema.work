@@ -1,0 +1,18 @@
+---
+import mark from '../../assets/mark-dark.svg?raw';
+interface Props { github: string }
+const { github } = Astro.props;
+---
+<a class="skip" href="#main">Skip to the content</a>
+<header class="bar">
+  <div class="wrap bar-in">
+    <a class="brand" href="#top" aria-label="mnema, top of the page"><Fragment set:html={mark} /><span class="name">mnema</span></a>
+    <nav aria-label="Main">
+      <a class="hide-s" href="#how">How it works</a>
+      <a class="hide-s" href="#measured">Measured</a>
+      <a href="/docs/">Docs</a>
+      <a class="hide-s" href={github}>GitHub</a>
+      <a class="btn primary small" href="#start">Get started</a>
+    </nav>
+  </div>
+</header>

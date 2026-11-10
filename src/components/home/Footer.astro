@@ -1,0 +1,44 @@
+---
+import mark from '../../assets/mark-dark.svg?raw';
+interface Props {
+  links: { npm: string; marketplace: string; github: string };
+  contact: { general: string; security: string };
+  built: { version: string; sha: string; repoUrl: string };
+}
+const { links, contact, built } = Astro.props;
+---
+<footer class="foot">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <a class="brand" href="#top"><Fragment set:html={mark} /><span class="name">mnema</span></a>
+        <p class="tagline">The decision record for AI coding agents.</p>
+      </div>
+      <div><h3>Product</h3><ul>
+        <li><a href="/docs/install/">Install</a></li>
+        <li><a href="/docs/hosts/">Hosts</a></li>
+        <li><a href={links.npm}>npm</a></li>
+        <li><a href={links.marketplace}>VS Code</a></li>
+      </ul></div>
+      <div><h3>Docs</h3><ul>
+        <li><a href="/docs/first-record/">Your first record</a></li>
+        <li><a href="/docs/how-it-works/">How it works</a></li>
+        <li><a href="/docs/what-it-proves/">What it proves</a></li>
+        <li><a href="/docs/cli-reference/">Reference</a></li>
+      </ul></div>
+      <div><h3>Project</h3><ul>
+        <li><a href={links.github}>GitHub</a></li>
+        <li><a href="/record/">This site’s record</a></li>
+        <li><a href="/docs/evidence/">Evidence</a></li>
+        <li class="mono">{contact.general}</li>
+        <li class="mono">{contact.security}</li>
+      </ul></div>
+    </div>
+    <p class="marks">OpenCode and the OpenCode logo are trademarks of Anomaly. GitHub and the Invertocat logo are trademarks of GitHub, Inc. They are shown to say that mnema works with those products, and mnema is not theirs. Every other product name is its owner’s, shown by name only.</p>
+    <p class="meta"><span>Apache-2.0</span><span>Tamper-evident, not tamper-proof.</span></p>
+    <p class="the-build mono">
+      mnema <span data-version>{built.version}</span> · commit{' '}
+      <a data-commit href={`${built.repoUrl}/commit/${built.sha}`}>{built.sha.slice(0, 12)}</a>
+    </p>
+  </div>
+</footer>

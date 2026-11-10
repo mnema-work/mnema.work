@@ -1,6 +1,6 @@
 // @reads-the-tree
 /**
- * THE HOME PAGE SAYS ITS OWN WORDS AND NOBODY ELSE'S FACTS. The words of mnema.work/ are the page's (ADR-199, ADR-200);
+ * THE HOME PAGE SAYS ITS OWN WORDS AND NOBODY ELSE'S FACTS. The words of mnema.work/ are the page's (ADR-245, ADR-246);
  * what is a fact of the release it was built from is read from the checkout of its tag, and this holds the built page to
  * the file each one comes from, read here again by code of its own and not by the build's:
  *
@@ -8,12 +8,14 @@
  *     measurements folder holds as JSON (`results/stage1/table.json`, `results/stage2/counts.json`);
  *   - THE HOSTS AND THEIR RUNGS: from the table of hosts the README holds (written from the product's host table);
  *   - THE COMMANDS that install: from the README's Quick start and the page of the hosts;
- *   - THE VERDICT shown: clauses of what the binary prints on the record committed at this commit;
+ *   - THE VERDICT shown: clauses of what the binary prints on the record committed at this commit, the two lines of the
+ *     same command after one character of it was changed, and the sentence of the refusal the session demo shows;
  *   - THE LINKS: each one to a page the site has, a section the page has, or a path git holds at the tag.
  *
  * AND HOLDS THE PAGE TO WHAT IT PROMISES: no colour of its own (the palette is the one owner), no host but its own asked
- * for anything, motion only in the hero's chain and none under `prefers-reduced-motion`, text at 4.5:1 on every ground it
- * is set on, real buttons and links, the chain hidden from assistive technology with a text alternative, the em dash nowhere.
+ * for anything, motion only inside a scene, in every scene, and none of it under `prefers-reduced-motion`, text at 4.5:1 on
+ * every ground it is set on, real buttons and links, each scene described in text, no horizontal scroll at phone width, the
+ * em dash nowhere.
  * Docs: both themes carry the palette, dark is the default, and the mark in the head links back to `/`.
  *
  * WHAT IT DOES NOT CHECK: how the page looks at any width (a reviewer opens it), or that a screen reader reads it well.
@@ -21,7 +23,7 @@
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { runInNewContext } from 'node:vm';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -29,7 +31,7 @@ import { hostsOf, installOf, measuredOf, verdictLinesOf } from '../build/the-hom
 import { contrastOf } from '../build/the-pages.mjs';
 import { INK, PAGE, PALETTE, paletteCss } from '../build/the-palette.mjs';
 import { PRODUCT_URL } from '../build/the-site.mjs';
-import { DIST, head, ROOT, readText, SITE, textOf } from './support/reading-the-site.js';
+import { DIST, fromTheProduct, head, ROOT, readText, SITE, textOf } from './support/reading-the-site.js';
 
 const BUILT = existsSync(join(DIST, 'index.html'));
 const when = BUILT ? describe : describe.skip;
@@ -231,23 +233,70 @@ when('the built home page', () => {
     for (const href of hrefs.filter((h) => h.startsWith('#'))) expect(ids.has(href.slice(1)), href).toBe(true);
   });
 
-  it('keeps the motion in the hero chain, and none of it under prefers-reduced-motion', () => {
+  // The scenes of the page, the classes whose rules move, and the class that names each one: the glow behind the hero, the four
+  // steps of the hero, the four illustrations and the session demo.
+  const SCENES: [name: string, root: string, family: string][] = [
+    ['the glow behind the hero', 'hero-glow', 'hero-glow'],
+    ['the four steps of the hero', 'scene', 'scene|st\\d?|seal|rail|inforce|blk|ghost|arrowx'],
+    ['the record', 'ill-record', 'form|swap|by|fld'],
+    ['the sessions', 'ill-session', 'stack|inforce|win'],
+    ['the rule', 'ill-rule', 'pen|refuse'],
+    ['the check', 'ill-check', 'vfy|res|blk|lnk'],
+    ['the session demo', 'chat', 'chat|body'],
+  ];
+  const rulesOf = (css: string): { selector: string; body: string }[] =>
+    [...css.matchAll(/([^{}@]+)\{([^{}]*)\}/g)].map((m) => ({ selector: (m[1] ?? '').trim(), body: m[2] ?? '' }));
+  const moves = (body: string): boolean => /\banimation(?:-name)?\s*:\s*(?!none)[^;}]+|\btransition\s*:\s*(?!none)[^;}]+/.test(body);
+
+  it('moves only inside a scene, moves in every scene, and none of it under prefers-reduced-motion', () => {
     const css = sourceOf('src/styles/home.css');
-    // Every animation of the page is on the two classes of the chain, and nowhere else.
-    const animated = [...css.matchAll(/([^{}]+)\{[^{}]*\banimation\s*:[ \t]*(?![ \t]|none)[^;}]+[;}]/g)].map((m) => (m[1] ?? '').trim());
-    expect(animated.sort(), 'the rules that animate').toEqual(['.home .link', '.home .lit']);
-    // Nothing that holds text fades: the animated elements are the chain's links (no text) and its last block (text),
-    // so no keyframe of the page animates an opacity.
-    for (const frames of css.matchAll(/@keyframes\s+[\w-]+\s*\{([\s\S]*?\})\s*\}/g)) {
-      expect(frames[1], 'a keyframe animates opacity').not.toMatch(/\bopacity\s*:/);
+    const at = css.indexOf('@media (prefers-reduced-motion: reduce)');
+    expect(at, 'the reduced-motion block is there, once').toBeGreaterThan(0);
+    expect(css.indexOf('@media (prefers-reduced-motion: reduce)', at + 1)).toBe(-1);
+    const reduced = css.slice(at);
+    const outside = css.slice(0, at);
+    const motion = rulesOf(outside.replace(/@keyframes\s+[\w-]+\s*\{([\s\S]*?\})\s*\}/g, '')).filter((r) => moves(r.body));
+    expect(motion.length, 'the page moves').toBeGreaterThan(20);
+    for (const rule of motion) {
+      for (const part of rule.selector.split(',').map((s) => s.trim())) {
+        expect(
+          SCENES.some(([, , family]) => new RegExp(`^\\.home (?:\\.play )?(?:[.\\w-]+ )*\\.(?:${family})(?![\\w-])`).test(part)) ||
+            // The reveal of an illustration as it comes into view is on the illustration itself, which each scene's rule below covers.
+            /^\.home \.(?:scene|chat|mv)\b/.test(part),
+          `${part} moves and is in no scene`,
+        ).toBe(true);
+      }
     }
-    expect(builtCss(), 'no animated opacity in the built style').not.toMatch(/@keyframes[^{]*\{[^@]*opacity\s*:/);
-    expect(css, 'no transition anywhere').not.toMatch(/\btransition\s*:/);
-    expect(css, 'no scroll behaviour set').not.toMatch(/scroll-behavior\s*:\s*smooth/);
-    const reduced = /@media \(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?\})\s*\}/.exec(css)?.[1] ?? '';
-    expect(reduced, 'the reduced-motion rule is there').toMatch(/\.home \.link,\s*\.home \.lit\s*\{\s*animation:\s*none;?\s*\}/);
-    // And it survives into the built style.
-    expect(builtCss().replace(/\s+/g, '')).toMatch(/@media\(prefers-reduced-motion:reduce\)\{[^@]*\.home\.link,\.home\.lit\{animation:none/);
+    expect(css, 'no smooth scrolling').not.toMatch(/scroll-behavior\s*:\s*smooth/);
+    const stillRules = rulesOf(reduced);
+    for (const [name, root, family] of SCENES) {
+      const own = motion.filter((r) => r.selector.split(',').some((s) => new RegExp(`\\.(?:${root}|${family})(?![\\w-])`).test(s)));
+      expect(own.length, `${name} moves`).toBeGreaterThan(0);
+      const kills = stillRules.filter(
+        (r) =>
+          new RegExp(`\\.home \\.${root}(?![\\w-])`).test(r.selector) &&
+          (root === 'hero-glow' || new RegExp(`\\.home \\.${root} \\*`).test(r.selector)) &&
+          /animation:\s*none/.test(r.body) &&
+          /transition:\s*none/.test(r.body),
+      );
+      expect(kills.length, `${name} has its own rule under prefers-reduced-motion`).toBeGreaterThan(0);
+    }
+    // Each rule survives into the built style.
+    const built = builtCss().replace(/\s+/g, '');
+    for (const [name, root] of SCENES) {
+      expect(built, `${name} under prefers-reduced-motion, built`).toMatch(
+        new RegExp(`@media\\(prefers-reduced-motion:reduce\\)\\{[^@]*\\.home\\.${root}[^{]*\\{[^}]*animation:none`),
+      );
+    }
+  });
+
+  it('starts no motion of its own where the reader asked for less', () => {
+    const script = /<script type="module">([\s\S]*?)<\/script>/.exec(page())?.[1] ?? '';
+    expect(script).toMatch(/matchMedia\(["'`]\(prefers-reduced-motion: reduce\)["'`]\)/);
+    expect(script.indexOf('prefers-reduced-motion'), 'asked before the first tick').toBeLessThan(script.indexOf('setInterval'));
+    expect(script.indexOf('prefers-reduced-motion'), 'asked before the observer').toBeLessThan(script.indexOf('IntersectionObserver'));
+    // The page as served is at the last frame of every scene: the four steps are all lit, and no step is waiting to be.
+    expect([...page().matchAll(/class="st st\d card on"/g)]).toHaveLength(4);
   });
 
   it('writes no colour of its own: every colour of the page is a variable of the palette, and each variable is defined', () => {
@@ -283,33 +332,56 @@ when('the built home page', () => {
     expect(contrastOf(PALETTE.onAccent, PALETTE.ink), 'the text over the accent on hover').toBeGreaterThanOrEqual(4.5);
   });
 
-  it('is made of real buttons and links, shows focus, hides the drawn chain and says it in text', () => {
+  it('is made of real buttons and links, shows focus, and describes each scene in text', () => {
     const html = page();
     expect(html).not.toMatch(/\sonclick=|role="button"/);
     expect([...html.matchAll(/<button\b[^>]*>/g)].every((m) => /type="button"/.test(m[0]) && /aria-label=/.test(m[0]))).toBe(true);
+    expect([...html.matchAll(/<button\b/g)].length, 'the copy button, Replay and Change one word').toBeGreaterThanOrEqual(3);
     expect(sourceOf('src/styles/home.css')).toMatch(/:focus-visible\s*\{[^}]*outline:/);
-    const chain = /<div class="chain-box" aria-hidden="true">/.exec(html);
-    expect(chain, 'the drawn chain is hidden from assistive technology').not.toBeNull();
-    const alternative = /<p class="sr-only">A record as a chain of signed blocks:([^<]*)<\/p>/.exec(html)?.[1] ?? '';
-    for (const words of ['ADR-1 recorded', 'ADR-1 accepted', 'rule at a path', 'edit refused', 'checkpoint signed']) {
-      expect(alternative, `the text alternative says ${words}`).toContain(words);
+    expect(html, 'no theme button: the page is dark').not.toMatch(/class="tgl"|data-theme/);
+    // Each scene says in words what it draws, in an aria-label, and its drawing is hidden from assistive technology.
+    const described = (root: string): { role: string; label: string } => {
+      const m = new RegExp(`<div class="[^"]*\\b${root}\\b[^"]*" role="(img|group)" aria-label="([^"]*)"`).exec(html);
+      return { role: m?.[1] ?? '', label: m?.[2] ?? '' };
+    };
+    const says: [string, string[]][] = [
+      ['scene', ['four steps', 'settles a call', 'recorded and signed', 'repository', 'next session']],
+      ['ill-record', ['Keep money as integer cents', 'proposed', 'accepted']],
+      ['ill-session', ['Claude Code', 'Codex', 'VS Code', 'In force']],
+      ['ill-rule', ['src/billing', 'refused', 'shell']],
+      ['ill-check', ['illustration', 'mnema verify', 'changed']],
+      ['chat', ['illustration', 'refuses the write', 'floats']],
+    ];
+    for (const [root, words] of says) {
+      const { role, label } = described(root);
+      expect(role, `${root} is described`).toMatch(/img|group/);
+      for (const word of words) expect(label.toLowerCase(), `the label of ${root} says "${word}"`).toContain(word.toLowerCase());
+    }
+    for (const root of ['ill-record', 'ill-session', 'ill-rule']) {
+      expect(html, `${root} hides its drawing`).toMatch(new RegExp(`\\b${root}\\b[\\s\\S]*?aria-hidden="true"`));
     }
     expect(html).toMatch(/<html lang="en">/);
     expect((html.match(/<h1\b/g) ?? []).length, 'one h1').toBe(1);
   });
 
-  it('works at phone width: the chain, the code and the console scroll inside their own box, and nothing sets a width the page cannot hold', () => {
+  it('works at phone width: wide things scroll in their own box, the columns fold, and nothing sets a width the page cannot hold', () => {
     const css = sourceOf('src/styles/home.css');
-    for (const selector of ['.home .chain-box', '.home .console, .home .code']) {
+    for (const selector of ['.home .console', '.home .code']) {
       const rule = css.slice(css.indexOf(`${selector} {`));
       expect(rule.slice(0, rule.indexOf('}')), `${selector} scrolls on its own`).toMatch(/overflow-x:\s*auto/);
     }
-    expect(css).toMatch(/\.home \.chain-row\s*\{[^}]*min-width:\s*880px/);
-    // No fixed width wider than a phone outside the chain's own row.
+    const phone = /@media \(max-width:\s*640px\)\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? '';
+    for (const folded of [/\.home \.steps\s*\{[^}]*grid-template-columns:\s*1fr\s*[;}]/, /\.home \.msg\s*\{[^}]*max-width:\s*100%/, /\.home \.chat \.refuse\s*\{[^}]*margin-left:\s*0/]) {
+      expect(phone, `${folded} at phone width`).toMatch(folded);
+    }
+    const tablet = /@media \(max-width:\s*960px\)\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? '';
+    expect(tablet, 'a section is one column below 960px').toMatch(/\.home \.sec \.g\s*\{[^}]*grid-template-columns:\s*1fr\s*[;}]/);
+    expect(tablet, 'the footer is two columns below 960px').toMatch(/\.home \.foot \.cols\s*\{[^}]*grid-template-columns:\s*1fr 1fr/);
+    // No fixed width wider than a phone, and a grid column that holds text can shrink (`min-width: 0`).
     for (const m of css.matchAll(/([^{}]+)\{[^{}]*\b(?<![-])(?:width|min-width):\s*(\d+)px/g)) {
-      if (/chain-row/.test(m[1] ?? '')) continue;
       expect(Number(m[2]), `${(m[1] ?? '').trim()} is wider than a phone`).toBeLessThanOrEqual(360);
     }
+    expect(css).toMatch(/\.home \.ill\s*\{[^}]*min-width:\s*0/);
   });
 
   it('has no em dash, anywhere on the page or in its sources', () => {
@@ -317,6 +389,9 @@ when('the built home page', () => {
     for (const [name, text] of [
       ['the built page', page()],
       ['index.astro', sourceOf('src/pages/index.astro')],
+      ...readdirSync(join(SITE, 'src/components/home')).map((f) => [`components/home/${f}`, sourceOf(`src/components/home/${f}`)] as const),
+      ['icons.mjs', sourceOf('src/icons.mjs')],
+      ['hosts/SOURCES.md', sourceOf('hosts/SOURCES.md')],
       ['home.css', sourceOf('src/styles/home.css')],
       ['site.css', sourceOf('src/styles/site.css')],
       ['copy.md', sourceOf('copy.md')],
@@ -325,10 +400,62 @@ when('the built home page', () => {
     }
   });
 
-  it('is dark and says its own words: the headline and the answer of ADR-199', () => {
-    expect(textOf(main())).toContain('Who decided this, and why? mnema keeps the answer.');
+  it('is dark and says its own words: the headline and the sentence under it, of ADR-246', () => {
+    const text = textOf(main());
+    expect(text).toContain('The decision record for AI coding agents. mnema keeps the why behind your agents’ work, signed, in your repository, and hands it to every next session.');
     expect(page()).toContain('<meta name="color-scheme" content="dark">');
+    expect(page()).toContain('<title>mnema: the decision record for AI coding agents</title>');
+    for (const heading of ['Record the why', 'Every session starts with it', 'Rules meet the edit', 'Anyone can check it', 'See it in a session', 'Works where your agents work', 'Start a record in a minute.']) {
+      expect(text, heading).toContain(heading);
+    }
   });
+
+  it('shows the refusal sentence the binary of the tag writes, taken from it and not typed', async () => {
+    const { ourWordsInRefusing } = await fromTheProduct('packages/code/dist/edit-refuses-a-write.js');
+    const rule = { id: 'x', name: 'x', address: 'src/billing', travels: true };
+    const sentence: string = ourWordsInRefusing({ path: 'src/billing/invoice.ts', relative: 'src/billing/invoice.ts', rules: [rule] })[0];
+    expect(sentence).toMatch(/^A rule of this project’s record refuses a write at src\/billing\/invoice\.ts while it stands\.$/);
+    const refusal = /<div class="refuse"><svg[^>]*>[\s\S]*?<\/svg><div><b>Refused by mnema<\/b>([^<]*)<span class="rname">/.exec(page())?.[1];
+    expect(refusal, 'the demo refuses with the binary’s sentence').toBe(sentence);
+    for (const file of readdirSync(join(SITE, 'src/components/home'))) {
+      expect(sourceOf(`src/components/home/${file}`), `${file} types the refusal`).not.toMatch(/refuses a write/);
+    }
+  });
+
+  it('labels Change one word an illustration of two real outputs, and holds both to what the verifier prints', () => {
+    const html = main();
+    const outputs = /<div class="a0"><div class="console mono">[\s\S]*?<div class="verified">([^<]*)<\/div><div class="muted">([^<]*)<\/div><\/div><\/div><div class="a1"><div class="console mono broken"><div class="cmd">[\s\S]*?<\/div><div class="failed">([^<]*)<\/div><div class="muted">([^<]*)<\/div>/.exec(html);
+    expect(outputs, 'the two outputs are in the illustration').not.toBeNull();
+    expect(textOf(html)).toContain('An illustration of two real outputs, captured from the verifier.');
+    expect(html).toMatch(/<a href="\/record\/">Run it on this site's own record<\/a>/);
+    const dir = mkdtempSync(join(tmpdir(), 'the-home-failure-'));
+    try {
+      execFileSync('git', ['archive', '--format=tar', '-o', join(dir, 'record.tar'), 'HEAD', '.mnema'], { cwd: ROOT });
+      const tree = join(dir, 'tree');
+      mkdirSync(tree);
+      execFileSync('tar', ['-xf', join(dir, 'record.tar'), '-C', tree]);
+      execFileSync('git', ['init', '-q', tree]);
+      const tails = join(tree, '.mnema', 'tails');
+      const tail = readdirSync(tails).map((d) => join(tails, d, '000001.jsonl')).find(existsSync) as string;
+      const text = readFileSync(tail, 'utf8');
+      const at = text.indexOf('"title":"') + '"title":"'.length;
+      writeFileSync(tail, text.slice(0, at) + (text[at] === 'Z' ? 'Y' : 'Z') + text.slice(at + 1));
+      const home = mkdtempSync(join(tmpdir(), 'the-home-failure-home-'));
+      const ran = spawnSync(process.execPath, [join(ROOT, 'packages/code/dist/cli.js'), 'verify'], {
+        cwd: tree,
+        env: { HOME: home, PATH: process.env.PATH ?? '' },
+        encoding: 'utf8',
+      });
+      rmSync(home, { recursive: true, force: true });
+      expect(ran.status, 'a changed record does not verify').not.toBe(0);
+      const said = `${ran.stdout}\n${ran.stderr}`;
+      expect(said, 'the first failed line is a stretch of what the binary printed').toContain(outputs?.[3]);
+      expect(said, 'the second failed line is a stretch of what the binary printed').toContain(outputs?.[4]);
+      expect(outputs?.[3]).toMatch(/^public: local integrity FAILED/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 60_000);
 });
 
 when('the docs take the palette, and the way back to the home page', () => {

@@ -2,7 +2,7 @@
 // product takes `root`, the checkout of one release tag (`the-product.mjs`); none has a default.
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
@@ -23,9 +23,10 @@ import {
 } from './the-pages.mjs';
 import { emptyMarkSvg, faviconPng, faviconSvg, markSvg, theSources } from './the-favicon.mjs';
 import { hostsOf, installOf, MEASURED, measuredOf, verdictLinesOf } from './the-home.mjs';
+import { HOSTS_DIR, withLogos } from './the-hosts.mjs';
 import { ACCENT, INK, PAGE, paletteCss } from './the-palette.mjs';
 import { tagOf } from './the-product.mjs';
-import { theVerdictOfTheCommit } from './the-record.mjs';
+import { theFailureOfTheCommit, theRefusalOfTheBinary, theVerdictOfTheCommit } from './the-record.mjs';
 import { CONTACT, SITE, SITE_URL } from './the-site.mjs';
 
 export { SITE };
@@ -135,15 +136,23 @@ export async function prepare({ root, site = SITE, check = false }) {
   // What the home page shows and does not say in its own words: counts, hosts, commands and the verdict, all read here.
   const hostsPage = readFileSync(join(root, 'docs/hosts.md'), 'utf8');
   const verdict = check ? null : theVerdictOfTheCommit({ root, sha: facts.sha, command: verifyCommandOf(readme) });
+  // The two outputs the "Change one word" illustration shows, and the sentence of the session demo's refusal: all three
+  // are what the binary of the tag prints, captured here. A check has no binary, so it has none of them.
+  const failure = check ? null : theFailureOfTheCommit({ root, sha: facts.sha, command: verifyCommandOf(readme) });
+  const refusal = check ? null : await theRefusalOfTheBinary({ root });
+  const hosts = hostsOf(readme);
   writeFileSync(
     into('src/generated/home.json'),
     `${JSON.stringify(
       {
         measured: measuredOf(root),
         measuredUrl: `${facts.repoUrl}/tree/${facts.tag}/${MEASURED}`,
-        ...hostsOf(readme),
+        hosts: withLogos(hosts.hosts, { dir: join(site, HOSTS_DIR) }),
+        rungs: hosts.rungs,
         install: installOf({ readme, hostsPage }),
         verdict: { command: verifyCommandOf(readme), lines: verdict === null ? [] : verdictLinesOf(verdict) },
+        failure: { lines: failure ?? [] },
+        refusal,
         links: {
           npm: facts.npmUrl,
           marketplace: `https://marketplace.visualstudio.com/items?itemName=${facts.extensionId}`,
@@ -160,6 +169,11 @@ export async function prepare({ root, site = SITE, check = false }) {
       2,
     )}\n`,
   );
+
+  // The vendors' logos, as they are tracked here, untouched: the page shows only those `hosts/SOURCES.md` lists.
+  for (const file of existsSync(join(site, HOSTS_DIR)) ? readdirSync(join(site, HOSTS_DIR)).filter((f) => f.endsWith('.svg')) : []) {
+    cpSync(join(site, HOSTS_DIR, file), into(`public/${HOSTS_DIR}/${file}`));
+  }
 
   for (const file of readdirSync(join(root, 'docs/assets'))) {
     cpSync(join(root, 'docs/assets', file), into(`public/assets/${file}`));

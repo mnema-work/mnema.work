@@ -1,0 +1,21 @@
+---
+import Icon from './Icon.astro';
+import { TITLE } from './words';
+interface Props { refusal: string | null }
+const { refusal } = Astro.props;
+---
+<section class="demo" id="demo">
+  <div class="wrap">
+    <div class="ctr"><h2>See it in a session</h2></div>
+    <div class="chat card" role="group" aria-label="A session, as an illustration: you ask your agent to store invoice totals as floats, the agent edits src/billing/invoice.ts, mnema refuses the write, and the agent asks whether to propose a new decision instead.">
+      <div class="tb"><i></i><i></i><i></i><span>your agent</span><button type="button" aria-label="Replay the session">Replay</button></div>
+      <div class="body">
+        <div class="msg me"><div class="av"><Icon name="person" /></div><div class="tx">Store the invoice totals as floats, it’s simpler.</div></div>
+        <div class="msg ag"><div class="av"><Icon name="bot" /></div><div class="tool"><Icon name="pencil" />Edit src/billing/invoice.ts</div></div>
+        <div class="refuse"><Icon name="shield" class="ico" /><div><b>Refused by mnema</b>{refusal}<span class="rname">“{TITLE}”</span></div></div>
+        <div class="msg ag"><div class="av"><Icon name="bot" /></div><div class="tx">This project keeps money as integer cents, and that rule is in force. Should I propose a new decision for you to review instead?</div></div>
+      </div>
+      <p class="note">An illustration. The refusal is mnema’s; the agent’s words are its own.</p>
+    </div>
+  </div>
+</section>

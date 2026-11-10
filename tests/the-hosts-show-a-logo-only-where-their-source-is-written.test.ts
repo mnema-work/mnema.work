@@ -16,8 +16,8 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { faultsAgainstProduct, faultsOf, HOSTS_DIR, LOGOS, PRODUCT_HOSTS_DIR, rowsOf, sha256, SOURCES, withLogos } from '../build/the-hosts.mjs';
+import { describe, expect, it, vi } from 'vitest';
+import { faultsAgainstProduct, faultsOf, HOSTS_DIR, LOGOS, PRODUCT_HOSTS_DIR, productHasHosts, rowsOf, sha256, SOURCES, withLogos } from '../build/the-hosts.mjs';
 import { hostsOf } from '../build/the-home.mjs';
 import { DIST, ROOT, readText, SITE } from './support/reading-the-site.js';
 
@@ -89,14 +89,34 @@ describe('the sources of the logos, over fixtures', () => {
 describe('the logos this repository holds, against the product it is built from', () => {
   it('are the product\'s own files of the checkout being built, byte for byte, with the hashes its SOURCES.md gives', () => {
     expect(faultsAgainstProduct({ root: ROOT, sources: sources() })).toEqual([]);
-    expect(existsSync(join(ROOT, PRODUCT_HOSTS_DIR, 'SOURCES.md')), 'the checkout has the product\'s table').toBe(true);
   });
 
-  it('names a file the product does not hold, a file whose bytes differ, a hash that differs and a checkout with no folder', () => {
+  it('is skipped, with a line said, for a checkout that has no assets/hosts (a tag that predates it), and still holds the site\'s own table', () => {
+    const product = mkdtempSync(join(tmpdir(), 'the-product-'));
+    const dir = mkdtempSync(join(tmpdir(), 'the-site-'));
+    const lines: unknown[][] = [];
+    const log = vi.spyOn(console, 'log').mockImplementation((...a) => void lines.push(a));
+    try {
+      writeFileSync(join(dir, 'alpha.svg'), 'x');
+      writeFileSync(join(dir, 'SOURCES.md'), `| \`alpha.svg\` | Alpha | https://alpha.example | 2026-11-09 | \`${sha256('x')}\` |\n`);
+      const logos = { Alpha: { file: 'alpha.svg', href: 'https://alpha.example', alt: '', width: 10, height: 10, owner: 'Alpha Inc.' } };
+      expect(productHasHosts(product)).toBe(false);
+      expect(faultsAgainstProduct({ root: product, dir, sources: readFileSync(join(dir, 'SOURCES.md'), 'utf8') })).toEqual([]);
+      expect(withLogos([{ name: 'Alpha', rung: 'a' }], { logos, dir, root: product })[0]?.logo?.file).toBe('alpha.svg');
+      expect(lines.join('\n')).toMatch(/not compared with the product's assets\/hosts\/: this tag predates it/);
+      writeFileSync(join(dir, 'alpha.svg'), 'changed');
+      expect(() => withLogos([{ name: 'Alpha', rung: 'a' }], { logos, dir, root: product })).toThrow(/is not the file/);
+    } finally {
+      log.mockRestore();
+      rmSync(product, { recursive: true, force: true });
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('names a file the product does not hold, a file whose bytes differ and a hash that differs, for a checkout that has assets/hosts', () => {
     const product = mkdtempSync(join(tmpdir(), 'the-product-'));
     const site = mkdtempSync(join(tmpdir(), 'the-site-'));
     try {
-      expect(faultsAgainstProduct({ root: product, dir: site, sources: '' }).join('\n')).toMatch(/have nothing to equal/);
       mkdirSync(join(product, PRODUCT_HOSTS_DIR), { recursive: true });
       writeFileSync(join(product, PRODUCT_HOSTS_DIR, 'a.svg'), 'x');
       writeFileSync(join(product, PRODUCT_HOSTS_DIR, 'SOURCES.md'), `| \`a.svg\` | A | https://a.example | 2026-11-09 | \`${sha256('x')}\` |\n`);

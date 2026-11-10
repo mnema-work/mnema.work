@@ -68,15 +68,19 @@ export function faultsOf({ logos = LOGOS, dir = join(SITE, HOSTS_DIR), sources }
 /** The folder of the vendors' files in the product's checkout, which the product's README shows its hosts by. */
 export const PRODUCT_HOSTS_DIR = 'assets/hosts';
 
+/** Whether the checkout holds the product's folder of vendor files: the tags before 0.1.8 do not, and have nothing to equal. */
+export const productHasHosts = (root) => existsSync(join(root, PRODUCT_HOSTS_DIR, 'SOURCES.md'));
+
 /**
  * The reasons the files of this site's `hosts/` are not the product's: a file the checkout of the tag being built does not
  * hold, a file whose bytes differ, a row whose hash is not the one the product's `SOURCES.md` gives that file. The site is
  * dark only, so it holds the files of the product's folder that suit a dark page, and every one of them is the product's.
- * The checkout is the one the build is given (`--from`), so the comparison is with the tag being built, not a pinned list.
+ * A checkout that has no such folder (a tag that predates it) has nothing to equal: no fault, and the site's own table check
+ * above still holds. The checkout is the one the build is given (`--from`), so the comparison is with the tag being built, not a pinned list.
  */
 export function faultsAgainstProduct({ root, dir = join(SITE, HOSTS_DIR), sources }) {
   const theirs = join(root, PRODUCT_HOSTS_DIR);
-  if (!existsSync(join(theirs, 'SOURCES.md'))) return [`${PRODUCT_HOSTS_DIR}/SOURCES.md is not in the checkout: the logos of ${HOSTS_DIR}/ have nothing to equal`];
+  if (!productHasHosts(root)) return [];
   const theirRows = rowsOf(readFileSync(join(theirs, 'SOURCES.md'), 'utf8'));
   const faults = [];
   for (const file of readdirSync(dir).filter((f) => f !== 'SOURCES.md')) {
@@ -96,13 +100,22 @@ export function ownersOf(hosts) {
   return [...new Set(hosts.filter((h) => h.logo !== undefined).map((h) => h.logo.owner))];
 }
 
-/** The hosts of the README with their logo where they have one; stops on a logo that is not sourced. */
+/**
+ * The hosts of the README with their logo where they have one; stops on a logo that is not sourced. With `root`, the files are
+ * also held equal to the product's where the checkout has them.
+ * @param {{ name: string, rung: string }[]} hosts
+ * @param {{ logos?: Record<string, any>, dir?: string, root?: string }} [options]
+ * @returns {any[]}
+ */
 export function withLogos(hosts, { logos = LOGOS, dir = join(SITE, HOSTS_DIR), root } = {}) {
   // A checkout of this site with no `hosts/` folder has no logo to show, so every host is shown by its name.
   if (!existsSync(dir)) return hosts;
   const sources = readFileSync(join(dir, 'SOURCES.md'), 'utf8');
   const faults = faultsOf({ logos, dir, sources });
-  if (root !== undefined) faults.push(...faultsAgainstProduct({ root, dir, sources }));
+  if (root !== undefined) {
+    if (productHasHosts(root)) faults.push(...faultsAgainstProduct({ root, dir, sources }));
+    else console.log(`the logos were not compared with the product's ${PRODUCT_HOSTS_DIR}/: this tag predates it (the check of ${SOURCES} still ran)`);
+  }
   for (const host of Object.keys(logos)) {
     if (!hosts.some((h) => h.name === host)) faults.push(`${host} has a logo and is not a host of the README's table`);
   }

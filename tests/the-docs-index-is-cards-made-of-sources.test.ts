@@ -101,8 +101,9 @@ describe('the cards of the groups', () => {
     expect(taken, 'the sentence of Learn is taken though this README has no such group').toContain('docs-learn');
   });
 
-  it('write the page as a splash, so the cards have the width of the page', () => {
-    expect(page()).toMatch(/^---\ntitle: "T"\ndescription: "D"\ntemplate: splash\n---\n/);
+  it('write the page as a standard page of the docs, with its sidebar and the menu of a phone, and no table of contents', () => {
+    expect(page()).toMatch(/^---\ntitle: "T"\ndescription: "D"\ntableOfContents: false\n---\n/);
+    expect(page()).not.toContain('splash');
   });
 });
 

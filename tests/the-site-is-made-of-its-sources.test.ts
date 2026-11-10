@@ -480,6 +480,17 @@ describe('the theme the build writes reads at WCAG AA in both themes', () => {
     expect(used.filter((name) => !allowed.has(name)), 'a text colour no pair measures').toEqual([]);
   });
 
+  it('leaves the markdown table as Starlight makes it: no rule of site.css sets its display or takes its scroll away', () => {
+    // Starlight's table is a block that scrolls inside itself. A table made `display: table`, or `overflow: visible`, widens the page
+    // instead (a wide table once made /docs/evidence/ thousands of pixels wide).
+    const css = readFileSync(join(SITE, 'src/styles/site.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rules = [...css.matchAll(/([^{}@]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1] as string, body: m[2] as string }));
+    const ofTheTable = (selector: string): boolean => selector.split(',').some((one) => /(^|[\s>+~])table(?![-\w])[^\s>+~]*\s*$/.test(one.trim()));
+    expect(rules.some((r) => ofTheTable(r.selector)), 'the sweep found the rule of the table').toBe(true);
+    const bad = rules.filter((r) => ofTheTable(r.selector) && /(^|[;\s])(display|overflow(-x|-y)?|max-width|min-width)\s*:/.test(r.body));
+    expect(bad.map((r) => r.selector.trim()), 'a rule that changes how the table sits in its column').toEqual([]);
+  });
+
   it('takes the smallest mix of the other ground that passes, and stops the build when none does', async () => {
     const t = await colours();
     const { ACCENT } = await fromTheProduct('.github/the-front-page/accent.mjs');

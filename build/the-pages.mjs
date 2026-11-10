@@ -445,7 +445,7 @@ export function docsIndexOf({ sidebar, title, description, copy, steps }) {
   const first = leavesOf(sidebar.flatMap((g) => g.items)).find((i) => i.link === FIRST_RECORD_LINK);
   if (first === undefined) throw new Error(`the sidebar has no page at ${FIRST_RECORD_LINK}, which the first card links`);
   const link = (item) => `<a href="${escapeHtml(firstLinkOf(item))}">${escapeHtml(item.label)}</a>`;
-  const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\ntemplate: splash\n---\n\n`;
+  const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\ntableOfContents: false\n---\n\n`;
   const lede = `<p class="docs-lede">${escapeHtml(copy('docs-lede'))}</p>`;
   const card = [
     `<a class="docs-first" href="${FIRST_RECORD_LINK}">`,

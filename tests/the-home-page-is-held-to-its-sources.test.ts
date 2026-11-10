@@ -614,6 +614,13 @@ when('the docs take the palette, and the way back to the home page', () => {
     expect(top(mine)).toEqual(top(links));
     expect(mine.filter((l) => depth(l) >= 3), 'a page of a folder that its index page should have been the one link to').toEqual([]);
     expect(mine.every((l) => links.has(l)), 'a link of /docs/ that the sidebar does not hold').toBe(true);
+    // Every top-level item of every group, a folder's index page included, is linked from /docs/: the README's own links to a
+    // page of docs/ (`[Label](docs/x.md)`) are those items, and a folder is the index page its item points at.
+    const readme = readText(join(ROOT, 'README.md'));
+    const docsSection = /\n## Docs\n([\s\S]*?)(?=\n## )/.exec(readme)?.[1] ?? '';
+    const items = [...docsSection.matchAll(/\]\(docs\/([^)#\s]+)\.md[^)]*\)/g)].map((m) => `/docs/${m[1]}/`);
+    expect(items.length, 'the sweep found the README items').toBeGreaterThan(15);
+    expect(items.filter((l) => !mine.includes(l)), 'an item of a group that /docs/ does not link').toEqual([]);
     for (const link of listed) expect(existsSync(join(DIST, link ?? '', 'index.html')), `${link} is a page`).toBe(true);
   });
 });

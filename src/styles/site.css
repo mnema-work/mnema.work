@@ -226,7 +226,7 @@ h1, h2, h3, h4, .site-title {
   color: var(--sl-color-text-accent);
 }
 
-@media (max-width: 50rem) {
+@media (max-width: 72rem) {
   .docs-first {
     grid-template-columns: 1fr;
     padding: 1.3rem;
@@ -250,9 +250,9 @@ h1, h2, h3, h4, .site-title {
   border-radius: 0.4em;
 }
 
-/* A page of the reference (a command, a tool): the first line says what it does, and the tables of arguments, options and
+/* A page of the reference (a command, a tool): the first line says what it does (larger there only), and the tables of arguments, options and
    parameters are cards, the name of each in the accent. Every table of the docs reads the same way. */
-.sl-markdown-content > p:first-child {
+:root:has(.sidebar-content a[aria-current='page'][href^='/docs/reference/']) .sl-markdown-content > p:first-child {
   color: var(--sl-color-gray-1);
   font-size: var(--sl-text-lg);
 }
@@ -273,19 +273,6 @@ h1, h2, h3, h4, .site-title {
 
 .sl-markdown-content td:first-child code {
   color: var(--sl-color-text-accent);
-  white-space: nowrap;
-}
-
-/* The table takes the width of the page, and the first column the width of its longest name: a flag and its value stay on one line.
-   Narrower than that Starlight's own scrolling block is kept, so the second column is reached by scrolling and not clipped. */
-@media (min-width: 50rem) {
-  .sl-markdown-content table {
-    display: table;
-    width: 100%;
-  }
-}
-
-.sl-markdown-content td:first-child {
-  width: 1%;
+  /* A flag and its value stay on one line. The table itself is Starlight's own block, which scrolls inside itself. */
   white-space: nowrap;
 }

@@ -19,7 +19,7 @@ page's footer says that the logos identify the hosts mnema works with and imply 
 | `qwen-code-logo.svg` | Qwen Code | https://raw.githubusercontent.com/QwenLM/qwen-code/79a60bc1e2a2114e953de7e0f5d8f559d82144bf/packages/desktop/bootstrap/qwen-code-logo.svg (the vendor's own repository) | 2026-11-09 | `24156c849c9124505e13b38c6583a9d5d85a1f57d996c324d967f480a4d88696` |
 | `antigravity-favicon.svg` | Antigravity CLI | https://antigravity.google/favicon.svg (the icon antigravity.google serves) | 2026-11-09 | `de7911c3d206a3d2fe3d5b4e76e84b185c581d7a259406f64db247b5b824f02e` |
 | `factory-favicon.svg` | Factory Droid | https://raw.githubusercontent.com/Factory-AI/factory/892925c655a97e7a0bc7d558236015ebb22cb214/docs/favicon.svg (the vendor's own repository) | 2026-11-09 | `4a6e2ad6af6635472cbf4a4e5e25046b2453793bf2be8a9b9f29c3cb88adc0cf` |
-| `goose-logo.svg` | Goose | https://raw.githubusercontent.com/aaif-goose/goose/72b8db883ff827f5aa0a0955e2007d1407f5d9b9/documentation/static/img/logo.svg (the project's own repository) | 2026-11-09 | `c2ae4b0e5603791e869ed5bc34a60a709d1ec6343fc22f75d97937aaafafd7f7` |
+| `logo_dark.png` | Goose | https://raw.githubusercontent.com/aaif-goose/goose/72b8db883ff827f5aa0a0955e2007d1407f5d9b9/documentation/static/img/logo_dark.png (the project's own repository: the white mark, for a dark page) | 2026-11-09 | `2c65dc076e4de0726755ebe9f69b7f5a87e6e724a3580663f1b6b1d7ded66cfc` |
 
 ## Claude Code
 

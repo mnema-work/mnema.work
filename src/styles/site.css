@@ -38,3 +38,239 @@ h1, h2, h3, h4, .site-title {
   width: auto;
 }
 
+
+/* The header: the links of the docs beside GitHub (`src/components/SocialIcons.astro`). Below 50rem the header's right group is
+   hidden by Starlight and the sidebar, behind the menu button, is the way around. */
+.header-links {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.header-links a {
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.5rem;
+  color: var(--sl-color-gray-1);
+  font-size: var(--sl-text-sm);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.header-links a:hover,
+.header-links a[aria-current] {
+  background: var(--sl-color-bg-inline-code);
+  color: var(--sl-color-white);
+}
+
+/* /docs/: the card of the first record and one card for each group. The words are written by the build from the README and
+   copy.md; this is only how they are laid out. Raw HTML in a `not-content` wrapper, so Starlight's prose rules leave it alone. */
+.docs-lede {
+  margin: 0 0 1.75rem;
+  max-width: 36em;
+  color: var(--sl-color-gray-1);
+  font-size: var(--sl-text-xl);
+}
+
+.docs-first {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1.75rem;
+  align-items: center;
+  padding: 1.9rem;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 1rem;
+  background: var(--sl-color-bg-nav);
+  color: var(--sl-color-gray-1);
+  text-decoration: none;
+}
+
+.docs-first:hover {
+  border-color: var(--sl-color-accent);
+}
+
+.docs-kicker {
+  color: var(--sl-color-gray-2);
+  font: 600 var(--sl-text-xs) var(--sl-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.docs-first h2 {
+  margin: 0.4rem 0 0.6rem;
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-4xl);
+  line-height: 1.1;
+}
+
+.docs-first p {
+  margin: 0;
+  max-width: 30em;
+}
+
+.docs-go {
+  display: flex;
+  width: fit-content;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 1.1rem;
+  color: var(--sl-color-text-accent);
+  font-weight: 700;
+}
+
+.docs-go svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.docs-first ol {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.docs-first li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 0.75rem;
+  background: var(--sl-color-black);
+  color: var(--sl-color-white);
+  font-weight: 600;
+  counter-increment: step;
+}
+
+.docs-first li::before,
+.sl-markdown-content h2:is([id^='1-'], [id^='2-'], [id^='3-'], [id^='4-'], [id^='5-'], [id^='6-'], [id^='7-'], [id^='8-'], [id^='9-'])::first-letter {
+  background: var(--sl-color-text-accent);
+  color: var(--sl-color-black);
+  font-family: var(--sl-font-mono);
+  font-weight: 700;
+}
+
+.docs-first li::before {
+  content: counter(step);
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 0.5rem;
+  font-size: var(--sl-text-sm);
+}
+
+.docs-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 1.1rem;
+  align-items: start;
+  margin-top: 1.75rem;
+}
+
+.docs-card {
+  padding: 1.4rem;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 1rem;
+  background: var(--sl-color-bg-nav);
+}
+
+.docs-icon {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 0.75rem;
+  background: var(--sl-color-bg-inline-code);
+  color: var(--sl-color-text-accent);
+}
+
+.docs-icon svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.docs-card h2 {
+  margin: 0.9rem 0 0.3rem;
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-xl);
+}
+
+.docs-card p {
+  margin: 0 0 0.75rem;
+  color: var(--sl-color-gray-2);
+  font-size: var(--sl-text-sm);
+}
+
+.docs-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.docs-card li {
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--sl-color-hairline);
+}
+
+.docs-card li a {
+  color: var(--sl-color-white);
+  text-decoration: none;
+}
+
+.docs-card li a:hover {
+  color: var(--sl-color-text-accent);
+}
+
+@media (max-width: 50rem) {
+  .docs-first {
+    grid-template-columns: 1fr;
+    padding: 1.3rem;
+  }
+}
+
+/* The steps of the first-record page: its `## 1.` to `## 5.` headings, each with its number as a badge and a rule above it.
+   Over the headings the page has: no component, so the page stays Markdown that GitHub reads. */
+.sl-markdown-content .sl-heading-wrapper:has(> h2:is([id^='1-'], [id^='2-'], [id^='3-'], [id^='4-'], [id^='5-'], [id^='6-'], [id^='7-'], [id^='8-'], [id^='9-'])) {
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--sl-color-hairline);
+}
+
+/* Starlight sets a heading inline, and `::first-letter` does not apply to an inline box. */
+.sl-markdown-content h2:is([id^='1-'], [id^='2-'], [id^='3-'], [id^='4-'], [id^='5-'], [id^='6-'], [id^='7-'], [id^='8-'], [id^='9-']) {
+  display: inline-block;
+}
+
+.sl-markdown-content h2:is([id^='1-'], [id^='2-'], [id^='3-'], [id^='4-'], [id^='5-'], [id^='6-'], [id^='7-'], [id^='8-'], [id^='9-'])::first-letter {
+  padding: 0.05em 0.4em;
+  border-radius: 0.4em;
+}
+
+/* A page of the reference (a command, a tool): the first line says what it does, and the tables of arguments, options and
+   parameters are cards, the name of each in the accent. Every table of the docs reads the same way. */
+.sl-markdown-content > p:first-child {
+  color: var(--sl-color-gray-1);
+  font-size: var(--sl-text-lg);
+}
+
+.sl-markdown-content table {
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 0.75rem;
+  font-size: var(--sl-text-sm);
+}
+
+.sl-markdown-content th {
+  background: var(--sl-color-bg-nav);
+  color: var(--sl-color-gray-2);
+  font: 600 var(--sl-text-xs) var(--sl-font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sl-markdown-content td:first-child code {
+  color: var(--sl-color-text-accent);
+}

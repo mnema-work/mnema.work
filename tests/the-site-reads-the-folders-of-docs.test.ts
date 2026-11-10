@@ -99,9 +99,18 @@ describe('the sidebar of a README that points at an index page in a folder', () 
     expect(check?.items.map((i) => i.link)).toEqual(['/docs/site/', '/record/']);
   });
 
-  it('lists the group nested in the page at /docs/', () => {
-    const page = docsIndexOf({ sidebar: sidebarWith(docs), title: 't', description: 'd' }) as string;
-    expect(page).toContain('- The commands\n  - [The commands](/docs/reference/commands/)\n  - [mnema init](/docs/reference/cli/init/)');
+  it('shows the group at /docs/ as the one link to its index page', () => {
+    const withFirst = `${docs}\n- **Get started.** [Your first record](docs/first-record.md)`;
+    const have = new Set([...names, 'first-record']);
+    const page = docsIndexOf({
+      sidebar: sidebarWith(withFirst, sources, have),
+      title: 't',
+      description: 'd',
+      copy: (key: string) => key,
+      steps: ['One'],
+    }) as string;
+    expect(page).toContain('<li><a href="/docs/reference/commands/">The commands</a></li>');
+    expect(page).not.toContain('mnema init');
   });
 });
 
@@ -149,9 +158,10 @@ describe('a checkout whose docs/ has a folder', () => {
     expect(readFileSync(join(site, 'src/content/docs/docs/reference/cli/init.md'), 'utf8')).toContain('[verify](/docs/reference/cli/verify/)');
   });
 
-  it('lists the group of the folder at /docs/', () => {
+  it('lists the group of the folder at /docs/ as the one link to its index page', () => {
     const index = readFileSync(join(site, 'src/content/docs/docs/index.md'), 'utf8');
-    expect(index).toContain('  - [mnema verify](/docs/reference/cli/verify/)');
+    expect(index).toContain('<a href="/docs/reference/commands/">The commands</a>');
+    expect(index).not.toContain('/docs/reference/cli/verify/');
   });
 
   it('stops the build when the folder holds a page its index does not list', async () => {

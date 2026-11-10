@@ -451,6 +451,35 @@ describe('the theme the build writes reads at WCAG AA in both themes', () => {
     }
   });
 
+  // The pairs the docs' own stylesheet draws: a `color` it sets is one of TEXTS, over any of GROUNDS (a card, the nav, the
+  // sidebar, inline code, the page). `gray-3` is the muted text of the footer and is measured on the page alone.
+  const TEXTS = ['white', 'gray-1', 'gray-2', 'text-accent'] as const;
+  const GROUNDS = ['black', 'bg-nav', 'bg-sidebar', 'bg-inline-code'] as const;
+
+  it('makes every text colour the docs stylesheet uses read at 4.5:1 on every ground it is drawn on', async () => {
+    const t = await colours();
+    for (const theme of ['dark', 'light'] as const) {
+      for (const ink of TEXTS) {
+        for (const ground of GROUNDS) {
+          expect(
+            wcag(t[theme][ink] as string, t[theme][ground] as string),
+            `${theme}: ${ink} on ${ground}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+      expect(wcag(t[theme]['gray-3'] as string, t[theme]['black'] as string), `${theme}: the muted text on the page`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('lets site.css set a text colour only from those the pairs above measure', () => {
+    const css = readFileSync(join(SITE, 'src/styles/site.css'), 'utf8');
+    // `black` is the ink over the accent (the number badges), measured by the case above on the primary button.
+    const allowed = new Set<string>([...TEXTS, 'gray-3', 'black']);
+    const used = [...css.matchAll(/(?<![-\w])color\s*:\s*var\(--sl-color-([a-z0-9-]+)\)/g)].map((m) => m[1] as string);
+    expect(used.length, 'the sweep found the text colours').toBeGreaterThan(10);
+    expect(used.filter((name) => !allowed.has(name)), 'a text colour no pair measures').toEqual([]);
+  });
+
   it('takes the smallest mix of the other ground that passes, and stops the build when none does', async () => {
     const t = await colours();
     const { ACCENT } = await fromTheProduct('.github/the-front-page/accent.mjs');

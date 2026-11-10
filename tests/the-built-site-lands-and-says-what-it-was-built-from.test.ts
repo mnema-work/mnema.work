@@ -290,18 +290,28 @@ when('the built site', () => {
       ...[...(copyOf(readText(join(SITE, 'copy.md'))) as Map<string, string>).values()],
     ].join('\n');
 
-  it.each([['404.html', 3, 0]])(
+  it.each([
+    ['404.html', 3, 0],
+    ['docs/index.html', 20, 0],
+  ])(
     'has no sentence of its own anywhere in the <main> of %s: every block, every alt, title and aria-label, and nothing left over',
     (page, least, pictures) => {
       const say = sourcesSay(landingCorpus(), howItWorks());
       // The command shown beside the verdict is a line of the Quick start read up to its `#`: a source, as the case below holds.
       const command = verifyCommandInReadme();
+      // The steps on the card of /docs/ are the headings `## 1. Label` of the first-record page, with their numbers off.
+      const labels = new Set<string>(
+        [...readText(join(ROOT, 'docs/first-record.md')).matchAll(/^## \d+\. (.+)$/gm)].map((m) => norm(m[1] ?? '')),
+      );
+      // Its group titles and its links are the README's: `- **Group.**` and `[Label](target)` in the Docs section.
+      const docsSection = /\n## Docs\n([\s\S]*?)(?=\n## )/.exec(readText(join(ROOT, 'README.md')))?.[1] ?? '';
+      for (const m of docsSection.matchAll(/^- \*\*([^*]+?)\.\*\*|\[([^\]]+)\]\(/gm)) labels.add(norm(m[1] ?? m[2] ?? ''));
       const { text, spoken, stripped } = blocksOfMain(html(page));
       expect(text.length, 'the <main> has text').toBeGreaterThan(least);
       expect(spoken.length, 'the <main> has pictures with words').toBeGreaterThanOrEqual(pictures);
       for (const block of [...text, ...spoken]) {
         expect(
-          block === command || say(block),
+          block === command || labels.has(norm(block)) || say(block),
           `the <main> of ${page} says what no source says: ${block.slice(0, 120)}`,
         ).toBe(true);
       }

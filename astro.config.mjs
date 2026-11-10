@@ -44,7 +44,7 @@ export default defineConfig({
         './src/generated/theme.css',
         './src/styles/site.css',
       ],
-      components: { Footer: './src/components/Footer.astro', ThemeProvider: './src/components/ThemeProvider.astro', ThemeSelect: './src/components/ThemeSelect.astro' },
+      components: { Footer: './src/components/Footer.astro', SocialIcons: './src/components/SocialIcons.astro', ThemeProvider: './src/components/ThemeProvider.astro', ThemeSelect: './src/components/ThemeSelect.astro' },
       head: [
         // The adaptive SVG is the icon; the PNG is only for browsers that draw no SVG in a tab.
         { tag: 'link', attrs: { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml', sizes: 'any' } },

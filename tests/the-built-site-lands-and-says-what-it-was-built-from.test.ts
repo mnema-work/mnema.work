@@ -193,6 +193,14 @@ when('the built site', () => {
     }
   });
 
+  it('has no id twice on a page of docs/', () => {
+    for (const name of names) {
+      const ids = [...html(`docs/${name}/index.html`).matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+      const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
+      expect(twice, `docs/${name} has an id twice`).toEqual([]);
+    }
+  });
+
   it('has no link that goes nowhere: every address inside the site is a file, every fragment an id', () => {
     const seen = { site: 0, fragment: 0, github: 0 };
     const held = tracked();

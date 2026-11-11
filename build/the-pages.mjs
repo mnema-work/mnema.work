@@ -167,7 +167,14 @@ export function pageOf({ name, markdown: source, facts, docs }) {
   const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\neditUrl: ${JSON.stringify(editUrl)}\n---\n\n`;
   // The title is the page's heading and not a heading of its body, so a link to it on GitHub (`#<the title as an id>`) has
   // nothing to land on here: the body begins with an empty anchor of that id.
-  const top = `<span id="${titleIdOf(title)}"></span>\n\n`;
+  // Unless a heading of the body already has that id (a page whose title and a section are the same words).
+  const titleId = titleIdOf(title);
+  let taken = false;
+  outsideFences(body, (text) => {
+    for (const m of text.matchAll(/^#{1,6} (.+?)\s*#*$/gm)) if (titleIdOf(m[1]) === titleId) taken = true;
+    return text;
+  });
+  const top = taken ? '' : `<span id="${titleId}"></span>\n\n`;
   return front + top + rewriteLinks(body, `docs/${name}.md`, facts, docs);
 }
 

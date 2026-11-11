@@ -1,0 +1,65 @@
+---
+import Icon from './Icon.astro';
+import { NOT, TITLE, WHY } from './words';
+interface Props { kind: 'record' | 'session' | 'rule' | 'check'; command: string; verdict: string[]; failure: { lines: string[]; before: string; after: string } }
+const { kind, command, verdict, failure } = Astro.props;
+const sessions = ['Claude Code', 'Codex', 'VS Code'];
+const blocks = [1, 2, 3, 4, 5];
+---
+{kind === 'record' && (
+  <div class="ill ill-record mv" role="img" aria-label={`A decision as a form: the title "${TITLE}", why "${WHY}", what was turned down "${NOT}", marked proposed and then accepted by a person, with a note.`}>
+    <div class="form card" aria-hidden="true">
+      <div class="top"><span class="lab">Decision</span><span class="swap"><span class="pill prop a0">proposed</span><span class="pill acc a1"><Icon name="check" class="tick" />accepted</span></span></div>
+      <div class="fld"><div class="lab">Title</div><div>{TITLE}</div></div>
+      <div class="fld"><div class="lab">Why</div><div>{WHY}</div></div>
+      <div class="fld"><div class="lab">Turned down</div><div>{NOT}</div></div>
+      <div class="by"><Icon name="person" />Accepted by a person, with a note.</div>
+    </div>
+  </div>
+)}
+{kind === 'session' && (
+  <div class="ill ill-session mv" role="img" aria-label={`Three new sessions, in Claude Code, Codex and VS Code, each opening with "In force: ${TITLE}".`}>
+    <div class="stack" aria-hidden="true">
+      {sessions.map((host) => (
+        <div class="win"><div class="tb"><i></i><i></i><i></i><span>{host} · new session</span></div><div class="bd"><div class="inforce"><Icon name="check" class="ico" />In force: {TITLE}</div><div class="ghost"></div><div class="ghost s"></div></div></div>
+      ))}
+    </div>
+  </div>
+)}
+{kind === 'rule' && (
+  <div class="ill ill-rule mv" role="img" aria-label={`A folder tree where src/billing is governed by a rule. An edit to src/billing/invoice.ts is refused, naming the rule "${TITLE}". Editing tools are held to it; a shell command is not.`}>
+    <div class="tree card" aria-hidden="true">
+      <div class="r"><Icon name="folder" />src/</div>
+      <div class="r d1 gov"><Icon name="folder" />billing/<span class="tag">governed by a rule</span></div>
+      <div class="r d2 tgt"><Icon name="file" />invoice.ts<span class="pen"><Icon name="pencil" /></span></div>
+      <div class="r d2"><Icon name="file" />tax.ts</div>
+      <div class="r d1"><Icon name="folder" />web/</div>
+      <div class="refuse"><Icon name="shield" class="ico" /><div><b>Write refused</b>{TITLE}</div></div>
+      <div class="shell">Editing tools are held to it. A shell command is not.</div>
+    </div>
+  </div>
+)}
+{kind === 'check' && (
+  <div class="ill ill-check mv" role="group" aria-label="Change one word: an illustration of two real outputs of mnema verify, the first on the record as committed and the second after one character of the title of one of its decisions was changed. The verifier itself runs on the page of this site's own record.">
+    <div class="vfy card" data-vfy>
+      <div class="lab centre">.mnema/, as committed</div>
+      <div class="chain" aria-hidden="true">
+        {blocks.map((b) => (
+          <>
+            <span class={`blk sig b${b}`}></span>
+            {b < 5 && <span class={`lnk l${b}`}></span>}
+          </>
+        ))}
+      </div>
+      <div class="res">
+        <div class="swap">
+          <div class="a0"><div class="console mono"><div class="cmd"><span class="prompt">$</span> {command}</div><div class="verified">{verdict[0]}</div><div class="muted">{verdict[1]}</div></div></div>
+          <div class="a1"><div class="console mono broken"><div class="cmd"><span class="prompt">$</span> {command}</div><div class="failed">{failure.lines[0]}</div><div class="muted">{failure.lines[1]}</div></div></div>
+        </div>
+      </div>
+      <div class="word" aria-hidden="true"><span class="w0">“{failure.before}…”</span><span class="w1">“<mark>{failure.after.slice(0, 1)}</mark>{failure.after.slice(1)}…”</span></div>
+      <div class="x"><button type="button" aria-pressed="false" aria-label="Change one word of the record, and see the verifier fail">Change one word</button></div>
+      <p class="honest-note">An illustration of two real outputs, captured from the verifier: the second after the first character of the title above was changed. <a href="/record/">Run it on this site's own record</a>, in your browser.</p>
+    </div>
+  </div>
+)}

@@ -58,17 +58,19 @@ export function htmlFiles(dir: string, base = dir, redirects = false): string[] 
   return out.sort();
 }
 
+const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+
 /**
  * What is left of a text when only its letters and numbers remain, so a rendering cannot differ from its
  * source. The address of a Markdown link is dropped first: the page shows the words of a link and not where it goes.
+ * The entities a source writes (`&lt;n>`) are undone, as the page shows the character they stand for.
  */
 export const norm = (text: string): string =>
   text
     .replace(/\]\([^)\s]*(?:\s+"[^"]*")?\)/g, ']')
+    .replace(/&(amp|lt|gt|quot|apos);/g, (_m, n: string) => ENTITIES[n] ?? _m)
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, '');
-
-const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 
 /** The text of a piece of HTML: no tags, the entities undone. */
 export function textOf(html: string): string {

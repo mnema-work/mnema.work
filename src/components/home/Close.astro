@@ -1,0 +1,21 @@
+---
+interface Props { install: { binary: string; found: string; plugin: string[]; extension: string } }
+const { install } = Astro.props;
+---
+<section id="start" class="close">
+  <div class="wrap ctr">
+    <h2>Start a record in a minute.</h2>
+    <p>Free and open source under Apache-2.0. The record lives in <span class="mono inline">.mnema/</span>, committed with your code. No account, no server.</p>
+    <div class="acts">
+      <a class="btn primary" href="/docs/first-record/">Get started</a>
+      <a class="btn" href="/docs/">Read the docs</a>
+    </div>
+    <div class="code mono" tabindex="0" role="region" aria-label="The commands that start a record">
+      <div><span class="prompt">$</span> {install.binary}</div>
+      <div><span class="prompt">$</span> {install.found}</div>
+      <div class="comment"># hand the record to your agent, in Claude Code:</div>
+      {install.plugin.map((command) => <div><span class="prompt">$</span> {command}</div>)}
+      <div class="comment"># in VS Code: {install.extension}</div>
+    </div>
+  </div>
+</section>

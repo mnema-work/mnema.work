@@ -24,6 +24,8 @@ export default defineConfig({
   site: facts.siteUrl,
   // The docs addresses that moved keep answering, with a page that sends the reader on (build/the-moved.mjs).
   redirects: redirectsFor(docs),
+  // The pages are the product's Markdown as written: a typographer would turn `--stdin` into a dash and a quote into a curly one.
+  markdown: { smartypants: false },
   integrations: [
     starlight({
       title: 'mnema',
@@ -44,7 +46,7 @@ export default defineConfig({
         './src/generated/theme.css',
         './src/styles/site.css',
       ],
-      components: { Footer: './src/components/Footer.astro', ThemeProvider: './src/components/ThemeProvider.astro', ThemeSelect: './src/components/ThemeSelect.astro' },
+      components: { Footer: './src/components/Footer.astro', SocialIcons: './src/components/SocialIcons.astro', ThemeProvider: './src/components/ThemeProvider.astro', ThemeSelect: './src/components/ThemeSelect.astro' },
       head: [
         // The adaptive SVG is the icon; the PNG is only for browsers that draw no SVG in a tab.
         { tag: 'link', attrs: { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml', sizes: 'any' } },

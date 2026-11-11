@@ -22,3 +22,30 @@ Documentation
 
 ## docs-description
 Every page of the documentation of mnema, by group, and the page that verifies the record in your browser.
+
+## docs-lede
+Start with one record. Then learn how it reaches your agents, and how anyone checks it.
+
+## docs-start-here
+Start here
+
+## docs-first-record
+Five short steps, from an empty repository to a decision your next session opens with.
+
+## docs-go
+Start
+
+## docs-get-started
+Install it and keep your first decision.
+
+## docs-learn
+How the record reaches your agents, and how anyone checks it.
+
+## docs-reference
+Every command, tool and switch.
+
+## docs-project
+How each claim is held, and the rest.
+
+## header-docs
+Docs

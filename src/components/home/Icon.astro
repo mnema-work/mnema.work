@@ -1,0 +1,7 @@
+---
+// One icon of `src/icons.mjs`, by its name. The drawing is hidden from assistive technology: the words around it say what it is.
+import { iconOf, type ICONS } from '../../icons.mjs';
+interface Props { name: keyof typeof ICONS; class?: string }
+const { name, class: className } = Astro.props;
+---
+<Fragment set:html={iconOf(name, className)} />

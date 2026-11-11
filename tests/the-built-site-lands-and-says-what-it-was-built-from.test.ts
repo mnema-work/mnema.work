@@ -178,7 +178,7 @@ when('the built site', () => {
     const built = pages
       .filter((p) => p.startsWith('docs/') && p !== 'docs/index.html')
       .map((p) => p.slice('docs/'.length, -'/index.html'.length));
-    expect([...built].sort()).toEqual(names);
+    expect([...built].sort()).toEqual([...names].sort());
     expect(pages, '/docs/ is a page').toContain('docs/index.html');
     expect(names.length).toBeGreaterThan(10);
     for (const name of [
@@ -190,6 +190,14 @@ when('the built site', () => {
       'sitemap-index.xml',
     ]) {
       expect(isFile(join(DIST, name)), `${name} is missing`).toBe(true);
+    }
+  });
+
+  it('has no id twice on a page of docs/', () => {
+    for (const name of names) {
+      const ids = [...html(`docs/${name}/index.html`).matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+      const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
+      expect(twice, `docs/${name} has an id twice`).toEqual([]);
     }
   });
 
@@ -264,6 +272,20 @@ when('the built site', () => {
     expect(blocks, 'the sweep read the prose').toBeGreaterThan(1000);
   });
 
+  it('keeps every flag of a page as the source writes it: a `--stdin` is never turned into a dash and a word', () => {
+    // The Markdown typographer turns `--` into a dash, and the block guard above reads letters and numbers only, so it cannot see it.
+    let flags = 0;
+    for (const name of names) {
+      const source = readText(join(ROOT, 'docs', `${name}.md`));
+      const page = textOf(html(`docs/${name}/index.html`));
+      for (const flag of new Set(source.match(/(?<![-\w])--[a-z][a-z0-9-]*/g) ?? [])) {
+        flags++;
+        expect(page.includes(flag), `docs/${name}.md writes ${flag} and the built page does not`).toBe(true);
+      }
+    }
+    expect(flags, 'the sweep found flags').toBeGreaterThan(100);
+  });
+
   /** The README's Quick start: the command on its one line that starts with `mnema verify`, up to the `#`. */
   const verifyCommandInReadme = (): string => {
     const quick = /## Quick start\n[\s\S]*?```sh\n([\s\S]*?)\n```/.exec(
@@ -290,18 +312,28 @@ when('the built site', () => {
       ...[...(copyOf(readText(join(SITE, 'copy.md'))) as Map<string, string>).values()],
     ].join('\n');
 
-  it.each([['404.html', 3, 0]])(
+  it.each([
+    ['404.html', 3, 0],
+    ['docs/index.html', 20, 0],
+  ])(
     'has no sentence of its own anywhere in the <main> of %s: every block, every alt, title and aria-label, and nothing left over',
     (page, least, pictures) => {
       const say = sourcesSay(landingCorpus(), howItWorks());
       // The command shown beside the verdict is a line of the Quick start read up to its `#`: a source, as the case below holds.
       const command = verifyCommandInReadme();
+      // The steps on the card of /docs/ are the headings `## 1. Label` of the first-record page, with their numbers off.
+      const labels = new Set<string>(
+        [...readText(join(ROOT, 'docs/first-record.md')).matchAll(/^## \d+\. (.+)$/gm)].map((m) => norm(m[1] ?? '')),
+      );
+      // Its group titles and its links are the README's: `- **Group.**` and `[Label](target)` in the Docs section.
+      const docsSection = /\n## Docs\n([\s\S]*?)(?=\n## )/.exec(readText(join(ROOT, 'README.md')))?.[1] ?? '';
+      for (const m of docsSection.matchAll(/^- \*\*([^*]+?)\.\*\*|\[([^\]]+)\]\(/gm)) labels.add(norm(m[1] ?? m[2] ?? ''));
       const { text, spoken, stripped } = blocksOfMain(html(page));
       expect(text.length, 'the <main> has text').toBeGreaterThan(least);
       expect(spoken.length, 'the <main> has pictures with words').toBeGreaterThanOrEqual(pictures);
       for (const block of [...text, ...spoken]) {
         expect(
-          block === command || say(block),
+          block === command || labels.has(norm(block)) || say(block),
           `the <main> of ${page} says what no source says: ${block.slice(0, 120)}`,
         ).toBe(true);
       }
@@ -562,7 +594,7 @@ when('the built site', () => {
     return out;
   };
 
-  it('lists the record page once, inside the group Verify of the sidebar, and no entry of the sidebar is outside a group', () => {
+  it('lists the record page once, inside the group that holds the page that verifies itself, in the sidebar, and no entry of the sidebar is outside a group', () => {
     const readme = readText(join(ROOT, 'README.md'));
     const docs = /\n## Docs\n([\s\S]*?)\n## /.exec(readme)?.[1] ?? '';
     const groups = [...docs.matchAll(/^- \*\*([^*]+?)\.\*\*/gm)].map((m) => m[1]);
@@ -582,7 +614,10 @@ when('the built site', () => {
       const holders = top.filter((e) => e.includes(`href="${BASE}/record/"`));
       expect(holders, `${page}: the record page is in one group`).toHaveLength(1);
       expect(textOf(/<summary\b[\s\S]*?<\/summary>/.exec(holders[0] ?? '')?.[0] ?? '')).toBe(
-        'Verify',
+        'Project',
+      );
+      expect(holders[0], `${page}: the group of the record page holds the page that verifies itself`).toContain(
+        `href="${BASE}/docs/site/"`,
       );
       expect(
         (top.join('').match(new RegExp(`<a\\b[^>]*href="${BASE}/record/"`, 'g')) ?? []).length,

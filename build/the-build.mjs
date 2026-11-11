@@ -2,13 +2,14 @@
 // product takes `root`, the checkout of one release tag (`the-product.mjs`); none has a default.
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   copyOf,
   docNames,
   docsIndexOf,
+  headerLinksOf,
   factsOf,
   headOfTheRecord,
   llmsTxt,
@@ -18,14 +19,16 @@ import {
   themeCss,
   sidebarOf,
   sitemapWith,
+  stepsOf,
   verifyCommandOf,
   withoutWhatIsNotOnTheSite,
 } from './the-pages.mjs';
 import { emptyMarkSvg, faviconPng, faviconSvg, markSvg, theSources } from './the-favicon.mjs';
 import { hostsOf, installOf, MEASURED, measuredOf, verdictLinesOf } from './the-home.mjs';
+import { HOSTS_DIR, ownersOf, withLogos } from './the-hosts.mjs';
 import { ACCENT, INK, PAGE, paletteCss } from './the-palette.mjs';
 import { tagOf } from './the-product.mjs';
-import { theVerdictOfTheCommit } from './the-record.mjs';
+import { theFailureOfTheCommit, theRefusalOfTheBinary, theVerdictOfTheCommit } from './the-record.mjs';
 import { CONTACT, SITE, SITE_URL } from './the-site.mjs';
 
 export { SITE };
@@ -70,14 +73,16 @@ export async function theFacts(root, { check = false } = {}) {
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   const json = (path) => JSON.parse(readFileSync(join(root, path), 'utf8'));
   const { EXTENSION_NAME } = await import(pathToFileURL(join(root, 'packages/vscode/build/the-extension-name.mjs')).href);
-  return factsOf({
+  // The directories the commit holds: a link to one is written with its closing slash, as the page of a directory is.
+  const directories = new Set(execFileSync('git', ['ls-tree', '-r', '-d', '--name-only', 'HEAD'], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean));
+  return Object.assign(factsOf({
     codePackage: json('packages/code/package.json'),
     extensionPackage: json('packages/vscode/package.json'),
     extensionName: EXTENSION_NAME,
     sha,
     // A check has no release tag: its pages link to the commit it was run on.
     tag: check ? sha : tagOf(root),
-  });
+  }), { directories });
 }
 
 /**
@@ -116,8 +121,10 @@ export async function prepare({ root, site = SITE, check = false }) {
   const sidebar = sidebarOf({ readme, facts, docs, read, record: { label: copy('record'), link: '/record/' } });
   writeFileSync(
     into('src/content/docs/docs/index.md'),
-    docsIndexOf({ sidebar, title: copy('docs-title'), description: copy('docs-description') }),
+    docsIndexOf({ sidebar, title: copy('docs-title'), description: copy('docs-description'), copy, steps: stepsOf(read('first-record')) }),
   );
+  // The two links the header carries beside GitHub: read by `src/components/SocialIcons.astro`.
+  writeFileSync(into('src/generated/header.json'), `${JSON.stringify(headerLinksOf({ sidebar, docs: copy('header-docs') }))}\n`);
 
   // The page that is not a page of `docs/`: a tracked template, filled the same way. The home page is not written
   // here: it is `src/pages/index.astro`, which reads `src/generated/home.json`.
@@ -135,15 +142,25 @@ export async function prepare({ root, site = SITE, check = false }) {
   // What the home page shows and does not say in its own words: counts, hosts, commands and the verdict, all read here.
   const hostsPage = readFileSync(join(root, 'docs/hosts.md'), 'utf8');
   const verdict = check ? null : theVerdictOfTheCommit({ root, sha: facts.sha, command: verifyCommandOf(readme) });
+  // The two outputs the "Change one word" illustration shows, and the sentence of the session demo's refusal: all three
+  // are what the binary of the tag prints, captured here. A check has no binary, so it has none of them.
+  const failure = check ? null : theFailureOfTheCommit({ root, sha: facts.sha, command: verifyCommandOf(readme) });
+  const refusal = check ? null : await theRefusalOfTheBinary({ root });
+  const hosts = hostsOf(readme);
+  const shown = withLogos(hosts.hosts, { dir: join(site, HOSTS_DIR), root });
   writeFileSync(
     into('src/generated/home.json'),
     `${JSON.stringify(
       {
         measured: measuredOf(root),
         measuredUrl: `${facts.repoUrl}/tree/${facts.tag}/${MEASURED}`,
-        ...hostsOf(readme),
+        hosts: shown,
+        owners: ownersOf(shown),
+        rungs: hosts.rungs,
         install: installOf({ readme, hostsPage }),
         verdict: { command: verifyCommandOf(readme), lines: verdict === null ? [] : verdictLinesOf(verdict) },
+        failure: failure ?? { lines: [], before: '', after: '' },
+        refusal,
         links: {
           npm: facts.npmUrl,
           marketplace: `https://marketplace.visualstudio.com/items?itemName=${facts.extensionId}`,
@@ -160,6 +177,11 @@ export async function prepare({ root, site = SITE, check = false }) {
       2,
     )}\n`,
   );
+
+  // The vendors' logos, as they are tracked here, untouched: the page shows only those `hosts/SOURCES.md` lists.
+  for (const file of existsSync(join(site, HOSTS_DIR)) ? readdirSync(join(site, HOSTS_DIR)).filter((f) => f !== 'SOURCES.md') : []) {
+    cpSync(join(site, HOSTS_DIR, file), into(`public/${HOSTS_DIR}/${file}`));
+  }
 
   for (const file of readdirSync(join(root, 'docs/assets'))) {
     cpSync(join(root, 'docs/assets', file), into(`public/assets/${file}`));

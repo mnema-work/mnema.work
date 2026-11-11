@@ -42,7 +42,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { prepare } from '../build/the-build.mjs';
+import { docsOf, prepare } from '../build/the-build.mjs';
 import {
   copyOf,
   groupsOf,
@@ -137,6 +137,21 @@ describe('a page of docs/ reaches the site with its title moved and its links la
       /leaves the repository/,
     );
     expect(rewriteLinks('[a](#here)', 'docs/x.md', FACTS, DOCS)).toBe('[a](#here)');
+  });
+
+  it('closes a link to a directory the commit holds, written without its slash, and leaves a file as it is', () => {
+    const facts = { ...FACTS, directories: new Set(['packages', 'packages/chain']) };
+    expect(whereItLands('../packages/chain', 'docs/architecture.md', facts, DOCS)).toBe(
+      'https://github.com/o/r/blob/abc123/packages/chain/',
+    );
+    expect(whereItLands('../packages/chain/FORMAT.md', 'docs/architecture.md', facts, DOCS)).toBe(
+      'https://github.com/o/r/blob/abc123/packages/chain/FORMAT.md',
+    );
+  });
+
+  it('leaves an anchor at the top of a page for the id GitHub gives its title', () => {
+    const out = pageOf({ name: 'install', markdown: '# Switching off what mnema hands to a model\n\nA page.\n', facts: FACTS, docs: DOCS }) as string;
+    expect(out).toContain('<span id="switching-off-what-mnema-hands-to-a-model"></span>');
   });
 });
 
@@ -451,6 +466,46 @@ describe('the theme the build writes reads at WCAG AA in both themes', () => {
     }
   });
 
+  // The pairs the docs' own stylesheet draws: a `color` it sets is one of TEXTS, over any of GROUNDS (a card, the nav, the
+  // sidebar, inline code, the page). `gray-3` is the muted text of the footer and is measured on the page alone.
+  const TEXTS = ['white', 'gray-1', 'gray-2', 'text-accent'] as const;
+  const GROUNDS = ['black', 'bg-nav', 'bg-sidebar', 'bg-inline-code'] as const;
+
+  it('makes every text colour the docs stylesheet uses read at 4.5:1 on every ground it is drawn on', async () => {
+    const t = await colours();
+    for (const theme of ['dark', 'light'] as const) {
+      for (const ink of TEXTS) {
+        for (const ground of GROUNDS) {
+          expect(
+            wcag(t[theme][ink] as string, t[theme][ground] as string),
+            `${theme}: ${ink} on ${ground}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+      expect(wcag(t[theme]['gray-3'] as string, t[theme]['black'] as string), `${theme}: the muted text on the page`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('lets site.css set a text colour only from those the pairs above measure', () => {
+    const css = readFileSync(join(SITE, 'src/styles/site.css'), 'utf8');
+    // `black` is the ink over the accent (the number badges), measured by the case above on the primary button.
+    const allowed = new Set<string>([...TEXTS, 'gray-3', 'black']);
+    const used = [...css.matchAll(/(?<![-\w])color\s*:\s*var\(--sl-color-([a-z0-9-]+)\)/g)].map((m) => m[1] as string);
+    expect(used.length, 'the sweep found the text colours').toBeGreaterThan(10);
+    expect(used.filter((name) => !allowed.has(name)), 'a text colour no pair measures').toEqual([]);
+  });
+
+  it('leaves the markdown table as Starlight makes it: no rule of site.css sets its display or takes its scroll away', () => {
+    // Starlight's table is a block that scrolls inside itself. A table made `display: table`, or `overflow: visible`, widens the page
+    // instead (a wide table once made /docs/evidence/ thousands of pixels wide).
+    const css = readFileSync(join(SITE, 'src/styles/site.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const rules = [...css.matchAll(/([^{}@]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1] as string, body: m[2] as string }));
+    const ofTheTable = (selector: string): boolean => selector.split(',').some((one) => /(^|[\s>+~])table(?![-\w])[^\s>+~]*\s*$/.test(one.trim()));
+    expect(rules.some((r) => ofTheTable(r.selector)), 'the sweep found the rule of the table').toBe(true);
+    const bad = rules.filter((r) => ofTheTable(r.selector) && /(^|[;\s])(display|overflow(-x|-y)?|max-width|min-width)\s*:/.test(r.body));
+    expect(bad.map((r) => r.selector.trim()), 'a rule that changes how the table sits in its column').toEqual([]);
+  });
+
   it('takes the smallest mix of the other ground that passes, and stops the build when none does', async () => {
     const t = await colours();
     const { ACCENT } = await fromTheProduct('.github/the-front-page/accent.mjs');
@@ -692,13 +747,14 @@ describe('the record page is in the sidebar, inside the group of the README that
   const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
   const docs = new Set(tracked('docs/*.md').map((f) => f.slice(5, -3)));
   const record = { label: 'Record', link: '/record/' };
+  const { read } = docsOf(ROOT);
 
   it('puts it right after the page that verifies itself, in the group that holds it, and nowhere else', () => {
-    const sidebar = sidebarOf({ readme, facts: FACTS, docs, record }) as {
+    const sidebar = sidebarOf({ readme, facts: FACTS, docs, record, read }) as {
       label: string;
       items: { label: string; link: string }[];
     }[];
-    const verify = sidebar.find((g) => g.label === 'Verify');
+    const verify = sidebar.find((g) => g.items.some((i) => i.label === 'The page that verifies itself'));
     const at = verify?.items.findIndex((i) => i.label === 'The page that verifies itself') ?? -1;
     expect(at).toBeGreaterThanOrEqual(0);
     expect(verify?.items[at + 1]).toEqual(record);
@@ -720,6 +776,7 @@ describe('the record page is in the sidebar, inside the group of the README that
         facts: FACTS,
         docs,
         record,
+        read,
       }),
     ).toThrow(/no "The page that verifies itself" in any group/);
   });
@@ -793,6 +850,11 @@ describe('what this repository tracks', () => {
   const THE_FAVICON = 'build/the-favicon.mjs';
   // The palette is the one file that owns the colours of the site; every other file reads them from it.
   const THE_PALETTE = 'build/the-palette.mjs';
+  // The icons of the home page are drawn in one file, and it may hold the markup of an SVG and no colour: they are
+  // `currentColor` or a variable of the palette. The vendors' logos in `hosts/` are their own files, as published and
+  // untouched (`hosts/SOURCES.md` says where each is from), so they hold the markup and the colours of the vendor.
+  const THE_ICONS = 'src/icons.mjs';
+  const isAVendorLogo = (file: string): boolean => /^hosts\/[^/]+\.(?:svg|png)$/.test(file);
 
   it('is found at all, and holds the 404 as a Markdown file that git lists, and no landing template: the home page is a page of the site', () => {
     expect(files).toContain('not-found.md');
@@ -806,12 +868,15 @@ describe('what this repository tracks', () => {
     const colourOnly = /#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\(|data:image/;
     for (const file of files) {
       const text = readFileSync(join(SITE, file), 'utf8');
+      const swept = file === THE_FAVICON || file === THE_ICONS ? colourOnly : file === THE_PALETTE || isAVendorLogo(file) ? /(?!)/ : colour;
       expect(
-        (file === THE_FAVICON ? colourOnly : file === THE_PALETTE ? /(?!)/ : colour).test(text),
+        swept.test(text),
         `${file} writes a colour or a picture`,
       ).toBe(false);
     }
     expect(files, 'the favicon generator is among the files swept').toContain(THE_FAVICON);
+    expect(files, 'the icons are among the files swept').toContain(THE_ICONS);
+    expect(files.filter(isAVendorLogo).length, 'the vendors’ logos are among the files tracked').toBeGreaterThan(0);
   });
 });
 

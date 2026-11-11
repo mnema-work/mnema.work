@@ -35,8 +35,10 @@ release, and stops on what a release build stops on for them; it does not write 
    that points at an index page in a folder is a group of the sidebar), the table of contents at `/docs/` and the 404 from the checkout (`build/the-build.mjs`,
    `build/the-pages.mjs`), with the links rewritten to where they land, and the facts the home page shows (the measured
    counts, the hosts and their rungs, the install commands, the verdict of the record), read from the same checkout
-   (`build/the-home.mjs`). The home page itself, `/`, is `src/pages/index.astro`: its words are the page's, and a test
-   holds every number, host and command in it to the file it is read from.
+   (`build/the-home.mjs`). The home page itself, `/`, is `src/pages/index.astro` and the components of `src/components/home/`: its words are
+   the page's, and a test holds every number, host, command, output and the sentence of its refusal to the file or the
+   binary it is read from. A host is shown by a logo only where `hosts/SOURCES.md` lists the vendor's own file, its source
+   and its hash; every other host is shown by its name.
 2. Lets Astro build the home page and Starlight the docs, both in the palette of `build/the-palette.mjs` and set in two
    typefaces served from this site (`@fontsource`, Open Font Licence: no page asks another host for anything), with its
    anonymous usage data off.

@@ -1,0 +1,17 @@
+---
+interface Props { sessions: number; followed: [number, number]; plugin: [number, number]; cli: [number, number]; url: string }
+const { sessions, followed, plugin, cli, url } = Astro.props;
+const [followedN, followedOf] = followed;
+const [pluginN, pluginOf] = plugin;
+const [cliN, cliOf] = cli;
+---
+<div id="measured" class="wrap measured">
+  <h3>Measured, not promised</h3>
+  <p class="lead">{sessions} Claude Code sessions, under a published pre-registration.</p>
+  <div class="cards three">
+    <div class="card count"><p class="mono big">{followedN}<span class="of">/{followedOf}</span></p><p>A rule written only in AGENTS.md was followed, as in CLAUDE.md.</p></div>
+    <div class="card count hot"><p class="mono big accent">{pluginN}<span class="of">/{pluginOf}</span></p><p>Decisions the agent recorded through the plugin, linked to the code they govern.</p></div>
+    <div class="card count"><p class="mono big">{cliN}<span class="of">/{cliOf}</span></p><p>The same, through the command line alone.</p></div>
+  </div>
+  <p class="note">Counts from one model and a handful of tasks, not rates. <a href={url}>The pre-registration, the kit and the result</a>.</p>
+</div>

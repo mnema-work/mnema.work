@@ -178,7 +178,7 @@ when('the built site', () => {
     const built = pages
       .filter((p) => p.startsWith('docs/') && p !== 'docs/index.html')
       .map((p) => p.slice('docs/'.length, -'/index.html'.length));
-    expect([...built].sort()).toEqual(names);
+    expect([...built].sort()).toEqual([...names].sort());
     expect(pages, '/docs/ is a page').toContain('docs/index.html');
     expect(names.length).toBeGreaterThan(10);
     for (const name of [
@@ -190,6 +190,14 @@ when('the built site', () => {
       'sitemap-index.xml',
     ]) {
       expect(isFile(join(DIST, name)), `${name} is missing`).toBe(true);
+    }
+  });
+
+  it('has no id twice on a page of docs/', () => {
+    for (const name of names) {
+      const ids = [...html(`docs/${name}/index.html`).matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+      const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
+      expect(twice, `docs/${name} has an id twice`).toEqual([]);
     }
   });
 
@@ -586,7 +594,7 @@ when('the built site', () => {
     return out;
   };
 
-  it('lists the record page once, inside the group Verify of the sidebar, and no entry of the sidebar is outside a group', () => {
+  it('lists the record page once, inside the group that holds the page that verifies itself, in the sidebar, and no entry of the sidebar is outside a group', () => {
     const readme = readText(join(ROOT, 'README.md'));
     const docs = /\n## Docs\n([\s\S]*?)\n## /.exec(readme)?.[1] ?? '';
     const groups = [...docs.matchAll(/^- \*\*([^*]+?)\.\*\*/gm)].map((m) => m[1]);
@@ -606,7 +614,10 @@ when('the built site', () => {
       const holders = top.filter((e) => e.includes(`href="${BASE}/record/"`));
       expect(holders, `${page}: the record page is in one group`).toHaveLength(1);
       expect(textOf(/<summary\b[\s\S]*?<\/summary>/.exec(holders[0] ?? '')?.[0] ?? '')).toBe(
-        'Verify',
+        'Project',
+      );
+      expect(holders[0], `${page}: the group of the record page holds the page that verifies itself`).toContain(
+        `href="${BASE}/docs/site/"`,
       );
       expect(
         (top.join('').match(new RegExp(`<a\\b[^>]*href="${BASE}/record/"`, 'g')) ?? []).length,

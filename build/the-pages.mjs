@@ -130,7 +130,8 @@ export function whereItLands(target, from, facts, docs) {
   // A recording a page shows is an image: on GitHub its path is an HTML page, so the site carries the GIF itself.
   const recording = /^recordings\/([^/]+\.gif)$/.exec(resolved);
   if (recording) return `${facts.base}/recordings/${recording[1]}${fragment}`;
-  const kept = target.endsWith('/') && !resolved.endsWith('/') ? `${resolved}/` : resolved;
+  const isDirectory = target.endsWith('/') || (facts.directories?.has(resolved.replace(/\/$/, '')) ?? false);
+  const kept = isDirectory && !resolved.endsWith('/') ? `${resolved}/` : resolved;
   return `${facts.repoUrl}/blob/${facts.sha}/${kept}${fragment}`;
 }
 
@@ -164,7 +165,25 @@ export function pageOf({ name, markdown: source, facts, docs }) {
   const editUrl = `${facts.repoUrl}/edit/main/docs/${name}.md`;
   const description = descriptionOf(markdown, `docs/${name}.md`);
   const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\neditUrl: ${JSON.stringify(editUrl)}\n---\n\n`;
-  return front + rewriteLinks(body, `docs/${name}.md`, facts, docs);
+  // The title is the page's heading and not a heading of its body, so a link to it on GitHub (`#<the title as an id>`) has
+  // nothing to land on here: the body begins with an empty anchor of that id.
+  // Unless a heading of the body already has that id (a page whose title and a section are the same words).
+  const titleId = titleIdOf(title);
+  let taken = false;
+  outsideFences(body, (text) => {
+    for (const m of text.matchAll(/^#{1,6} (.+?)\s*#*$/gm)) if (titleIdOf(m[1]) === titleId) taken = true;
+    return text;
+  });
+  const top = taken ? '' : `<span id="${titleId}"></span>\n\n`;
+  return front + top + rewriteLinks(body, `docs/${name}.md`, facts, docs);
+}
+
+/** The id GitHub gives a heading: its letters and numbers lowercased, its spaces as hyphens, the rest dropped. */
+function titleIdOf(title) {
+  return title
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+    .replace(/\s/g, '-');
 }
 
 /** The text of a `## ` section of the README, without its heading, up to the next `## `. */
@@ -625,7 +644,7 @@ const DESCRIPTION_FIELD = /^<!-- description: (.+?) -->$/m;
 /**
  * What a page of `docs/` says of itself. Its own `<!-- description: ... -->` line, when it has one (a page whose
  * first sentence says too little); otherwise the first sentence of its first paragraph of prose (a heading, a code
- * fence, a table, a list, a quotation and a line of HTML are not one), as plain words, or those words cut at the last
+ * fence, a table, a list, a quotation, a line of HTML and a line that is only bold, a page's own subtitle, are not one), as plain words, or those words cut at the last
  * whole word with an ellipsis when the sentence is longer than `DESCRIPTION_CHARS`. Never typed in the build: a page
  * that changes changes what a search result says of it.
  */
@@ -636,7 +655,7 @@ export function descriptionOf(markdown, from) {
     own ??= DESCRIPTION_FIELD.exec(text)?.[1] ?? null;
     for (const block of text.split(/\n\s*\n/)) {
       const trimmed = block.trim();
-      if (paragraph === null && trimmed !== '' && !/^(#|[-*+] |\d+\. |\||>|<)/.test(trimmed)) paragraph = plainOf(trimmed);
+      if (paragraph === null && trimmed !== '' && !/^(#|[-*+] |\d+\. |\||>|<)/.test(trimmed) && !/^\*\*[^*\n]+\*\*$/.test(trimmed)) paragraph = plainOf(trimmed);
     }
     return text;
   });

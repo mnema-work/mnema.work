@@ -42,7 +42,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { prepare } from '../build/the-build.mjs';
+import { docsOf, prepare } from '../build/the-build.mjs';
 import {
   copyOf,
   groupsOf,
@@ -137,6 +137,21 @@ describe('a page of docs/ reaches the site with its title moved and its links la
       /leaves the repository/,
     );
     expect(rewriteLinks('[a](#here)', 'docs/x.md', FACTS, DOCS)).toBe('[a](#here)');
+  });
+
+  it('closes a link to a directory the commit holds, written without its slash, and leaves a file as it is', () => {
+    const facts = { ...FACTS, directories: new Set(['packages', 'packages/chain']) };
+    expect(whereItLands('../packages/chain', 'docs/architecture.md', facts, DOCS)).toBe(
+      'https://github.com/o/r/blob/abc123/packages/chain/',
+    );
+    expect(whereItLands('../packages/chain/FORMAT.md', 'docs/architecture.md', facts, DOCS)).toBe(
+      'https://github.com/o/r/blob/abc123/packages/chain/FORMAT.md',
+    );
+  });
+
+  it('leaves an anchor at the top of a page for the id GitHub gives its title', () => {
+    const out = pageOf({ name: 'install', markdown: '# Switching off what mnema hands to a model\n\nA page.\n', facts: FACTS, docs: DOCS }) as string;
+    expect(out).toContain('<span id="switching-off-what-mnema-hands-to-a-model"></span>');
   });
 });
 
@@ -732,13 +747,14 @@ describe('the record page is in the sidebar, inside the group of the README that
   const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
   const docs = new Set(tracked('docs/*.md').map((f) => f.slice(5, -3)));
   const record = { label: 'Record', link: '/record/' };
+  const { read } = docsOf(ROOT);
 
   it('puts it right after the page that verifies itself, in the group that holds it, and nowhere else', () => {
-    const sidebar = sidebarOf({ readme, facts: FACTS, docs, record }) as {
+    const sidebar = sidebarOf({ readme, facts: FACTS, docs, record, read }) as {
       label: string;
       items: { label: string; link: string }[];
     }[];
-    const verify = sidebar.find((g) => g.label === 'Verify');
+    const verify = sidebar.find((g) => g.items.some((i) => i.label === 'The page that verifies itself'));
     const at = verify?.items.findIndex((i) => i.label === 'The page that verifies itself') ?? -1;
     expect(at).toBeGreaterThanOrEqual(0);
     expect(verify?.items[at + 1]).toEqual(record);
@@ -760,6 +776,7 @@ describe('the record page is in the sidebar, inside the group of the README that
         facts: FACTS,
         docs,
         record,
+        read,
       }),
     ).toThrow(/no "The page that verifies itself" in any group/);
   });

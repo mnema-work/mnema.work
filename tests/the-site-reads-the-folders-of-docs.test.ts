@@ -128,12 +128,14 @@ describe('a checkout whose docs/ has a folder', () => {
   const site = join(scratch, 'site');
   beforeAll(async () => {
     git(scratch, 'clone', '-q', '--no-hardlinks', ROOT, product);
+    // The product's own reference folders give way to a small one this test holds.
+    rmSync(join(product, 'docs/reference'), { recursive: true, force: true });
     mkdirSync(join(product, 'docs/reference/cli'), { recursive: true });
     writeFileSync(join(product, 'docs/reference/commands.md'), INDEX);
     writeFileSync(join(product, 'docs/reference/cli/init.md'), '# mnema init\n\nStarts a record. See [verify](verify.md).\n');
     writeFileSync(join(product, 'docs/reference/cli/verify.md'), '# mnema verify\n\nChecks a record. See [install](../../install.md).\n');
     const path = join(product, 'README.md');
-    writeFileSync(path, readFileSync(path, 'utf8').replace('- **Verify.**', '- **Reference.** [The commands](docs/reference/commands.md)\n- **Verify.**'));
+    writeFileSync(path, readFileSync(path, 'utf8').replace('[Commands](docs/reference/commands.md) · [MCP tools](docs/reference/mcp-tools.md)', '[The commands](docs/reference/commands.md)'));
     git(product, 'add', 'README.md', 'docs');
     git(product, 'commit', '-q', '-m', 'a folder in docs');
     mkdirSync(site);

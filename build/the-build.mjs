@@ -73,14 +73,16 @@ export async function theFacts(root, { check = false } = {}) {
   const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   const json = (path) => JSON.parse(readFileSync(join(root, path), 'utf8'));
   const { EXTENSION_NAME } = await import(pathToFileURL(join(root, 'packages/vscode/build/the-extension-name.mjs')).href);
-  return factsOf({
+  // The directories the commit holds: a link to one is written with its closing slash, as the page of a directory is.
+  const directories = new Set(execFileSync('git', ['ls-tree', '-r', '-d', '--name-only', 'HEAD'], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean));
+  return Object.assign(factsOf({
     codePackage: json('packages/code/package.json'),
     extensionPackage: json('packages/vscode/package.json'),
     extensionName: EXTENSION_NAME,
     sha,
     // A check has no release tag: its pages link to the commit it was run on.
     tag: check ? sha : tagOf(root),
-  });
+  }), { directories });
 }
 
 /**

@@ -76,6 +76,7 @@ describe('what a page of docs/ says of itself is the first sentence of its prose
       'The second.',
     ].join('\n');
     expect(descriptionOf(page, 'p.md')).toBe('The first real paragraph, with code.');
+    expect(descriptionOf('# t\n\n**A subtitle**\n\nThe sentence after it. And more.\n', 'p.md')).toBe('The sentence after it.');
   });
 
   it('is the FIRST SENTENCE of the paragraph, not the paragraph', () => {

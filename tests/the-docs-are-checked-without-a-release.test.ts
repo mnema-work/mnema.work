@@ -113,12 +113,14 @@ describe('the check of the docs', () => {
 
   it('builds a page in a folder of docs/ at its address, and the folder as a group of the sidebar', () => {
     const product = anUnreleasedProduct((dir) => {
+      // The product's own reference folders give way to a small one this test holds.
+      rmSync(join(dir, 'docs/reference'), { recursive: true, force: true });
       mkdirSync(join(dir, 'docs/reference/cli'), { recursive: true });
       writeFileSync(join(dir, 'docs/reference/commands.md'), '# The commands\n\nEvery command.\n\n- [mnema init](cli/init.md)\n- [mnema verify](cli/verify.md)\n');
       writeFileSync(join(dir, 'docs/reference/cli/init.md'), '# mnema init\n\nStarts a record. See [verify](verify.md).\n');
       writeFileSync(join(dir, 'docs/reference/cli/verify.md'), '# mnema verify\n\nChecks a record.\n');
       const readme = join(dir, 'README.md');
-      writeFileSync(readme, readFileSync(readme, 'utf8').replace('- **Verify.**', '- **Reference.** [The commands](docs/reference/commands.md)\n- **Verify.**'));
+      writeFileSync(readme, readFileSync(readme, 'utf8').replace('[Commands](docs/reference/commands.md) · [MCP tools](docs/reference/mcp-tools.md)', '[The commands](docs/reference/commands.md)'));
     });
     const built = check(product);
     expect(built.status, built.stdout + built.stderr).toBe(0);

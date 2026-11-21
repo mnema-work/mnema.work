@@ -690,7 +690,7 @@ export function descriptionOf(markdown, from) {
 /**
  * The structured data of the site, built from facts the repository holds: the name, the description, the version and
  * the licence of `@mnema/code`, the site's own address, and where the same software is found (the repository, npm and
- * the two extension stores), the social card as its image and the favicon as the publisher's logo (both files the
+ * the two extension stores), the social card as its image and the favicon.svg as the publisher's logo (both files the
  * site writes at its root). It carries no rating and no review: nothing here is a number somebody gave.
  * @param {FactsOfTheSite} facts
  */
@@ -704,7 +704,7 @@ export function structuredDataOf(facts) {
         '@id': `${facts.homeUrl}#organization`,
         name: facts.owner,
         url: facts.homeUrl,
-        logo: { '@type': 'ImageObject', url: `${facts.homeUrl}favicon.png` },
+        logo: { '@type': 'ImageObject', url: `${facts.homeUrl}favicon.svg` },
         sameAs: [`https://github.com/${facts.owner}`],
       },
       { '@type': 'WebSite', '@id': `${facts.homeUrl}#website`, name: facts.name, url: facts.homeUrl, description: facts.description },
@@ -721,7 +721,6 @@ export function structuredDataOf(facts) {
         license: `https://spdx.org/licenses/${facts.license}.html`,
         image: `${facts.homeUrl}og.png`,
         publisher: { '@id': `${facts.homeUrl}#organization` },
-        codeRepository: facts.repoUrl,
         installUrl: facts.npmUrl,
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
         sameAs: [

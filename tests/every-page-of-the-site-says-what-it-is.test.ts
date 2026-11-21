@@ -12,7 +12,7 @@
  *   - THE STRUCTURED DATA IS BUILT FROM FACTS (`structuredDataOf`), is on the landing and on `/record/` and on no
  *     other page, names GitHub, npm and the two extension stores as where the software is, and carries no rating
  *     and no review on any page.
- *   - THE HOME'S STRUCTURED DATA ALSO NAMES ITS PUBLISHER (an Organization with a logo), its image, its repository, its
+ *   - THE HOME'S STRUCTURED DATA ALSO NAMES ITS PUBLISHER (an Organization with a logo), its image, its
  *     install address, its operating systems and a price of 0, each from a fact the site holds.
  *   - EVERY LINE OF THE SITEMAP CARRIES `lastmod`: the date of the release the site is built from, the same for every
  *     page and never the build's clock.
@@ -137,23 +137,26 @@ describe('the structured data is the facts, with where the software is found and
     });
   });
 
-  it('names its publisher with a logo, and gives the application an image, a repository, an install address, systems and a price of 0', () => {
+  it('names its publisher with a logo, and gives the application an image, an install address, systems and a price of 0', () => {
     expect(data['@graph'][0]).toEqual({
       '@type': 'Organization',
       '@id': 'https://o.github.io/r/#organization',
       name: 'o',
       url: 'https://o.github.io/r/',
-      logo: { '@type': 'ImageObject', url: 'https://o.github.io/r/favicon.png' },
+      logo: { '@type': 'ImageObject', url: 'https://o.github.io/r/favicon.svg' },
       sameAs: ['https://github.com/o'],
     });
     expect(data['@graph'][2]).toMatchObject({
       image: 'https://o.github.io/r/og.png',
       publisher: { '@id': 'https://o.github.io/r/#organization' },
-      codeRepository: 'https://github.com/o/r',
       installUrl: 'https://www.npmjs.com/package/@r/code',
       operatingSystem: 'Linux, macOS, Windows',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     });
+  });
+
+  it('keeps the repository in sameAs and does not put codeRepository on the application', () => {
+    expect(JSON.stringify(data)).not.toContain('codeRepository');
   });
 
   it('offers no search box: the site has no address that takes a query', () => {

@@ -164,7 +164,7 @@ export function pageOf({ name, markdown: source, facts, docs }) {
   ).replace(/^\n+/, '');
   const editUrl = `${facts.repoUrl}/edit/main/docs/${name}.md`;
   const description = descriptionOf(markdown, `docs/${name}.md`);
-  const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\neditUrl: ${JSON.stringify(editUrl)}\n---\n\n`;
+  const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\neditUrl: ${JSON.stringify(editUrl)}\nhead: ${socialHeadOf({ title, description })}\n---\n\n`;
   // The title is the page's heading and not a heading of its body, so a link to it on GitHub (`#<the title as an id>`) has
   // nothing to land on here: the body begins with an empty anchor of that id.
   // Unless a heading of the body already has that id (a page whose title and a section are the same words).
@@ -176,6 +176,21 @@ export function pageOf({ name, markdown: source, facts, docs }) {
   });
   const top = taken ? '' : `<span id="${titleId}"></span>\n\n`;
   return front + top + rewriteLinks(body, `docs/${name}.md`, facts, docs);
+}
+
+/**
+ * The social tags of a page of the docs, as the JSON (which is YAML) of its frontmatter `head`: Starlight puts the bare
+ * page title in `og:title`, and a shared link must name the product. Starlight takes the entry of a page over its own
+ * of the same key, so these replace `og:title`; `twitter:title` and `twitter:description` are the same words.
+ */
+export function socialHeadOf({ title, description }) {
+  const named = `${title} · mnema`;
+  const meta = (key, value, content) => ({ tag: 'meta', attrs: { [key]: value, content } });
+  return JSON.stringify([
+    meta('property', 'og:title', named),
+    meta('name', 'twitter:title', named),
+    meta('name', 'twitter:description', description),
+  ]);
 }
 
 /** The id GitHub gives a heading: its letters and numbers lowercased, its spaces as hyphens, the rest dropped. */
@@ -464,7 +479,7 @@ export function docsIndexOf({ sidebar, title, description, copy, steps }) {
   const first = leavesOf(sidebar.flatMap((g) => g.items)).find((i) => i.link === FIRST_RECORD_LINK);
   if (first === undefined) throw new Error(`the sidebar has no page at ${FIRST_RECORD_LINK}, which the first card links`);
   const link = (item) => `<a href="${escapeHtml(firstLinkOf(item))}">${escapeHtml(item.label)}</a>`;
-  const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\ntableOfContents: false\n---\n\n`;
+  const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\ntableOfContents: false\nhead: ${socialHeadOf({ title, description })}\n---\n\n`;
   const lede = `<p class="docs-lede">${escapeHtml(copy('docs-lede'))}</p>`;
   const card = [
     `<a class="docs-first" href="${FIRST_RECORD_LINK}">`,
@@ -668,14 +683,15 @@ export function descriptionOf(markdown, from) {
 }
 
 /**
- * @typedef {{ name: string, description: string, version: string, license: string, repoUrl: string, homeUrl: string,
- *   npmUrl: string, extensionId: string }} FactsOfTheSite what the structured data and the head of /record/ read
+ * @typedef {{ name: string, owner: string, description: string, version: string, license: string, repoUrl: string,
+ *   homeUrl: string, npmUrl: string, extensionId: string }} FactsOfTheSite what the structured data and the head of /record/ read
  */
 
 /**
  * The structured data of the site, built from facts the repository holds: the name, the description, the version and
  * the licence of `@mnema/code`, the site's own address, and where the same software is found (the repository, npm and
- * the two extension stores). It carries no rating and no review: nothing here is a number somebody gave.
+ * the two extension stores), the social card as its image and the favicon.svg as the publisher's logo (both files the
+ * site writes at its root). It carries no rating and no review: nothing here is a number somebody gave.
  * @param {FactsOfTheSite} facts
  */
 export function structuredDataOf(facts) {
@@ -683,6 +699,14 @@ export function structuredDataOf(facts) {
   return {
     '@context': 'https://schema.org',
     '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${facts.homeUrl}#organization`,
+        name: facts.owner,
+        url: facts.homeUrl,
+        logo: { '@type': 'ImageObject', url: `${facts.homeUrl}favicon.svg` },
+        sameAs: [`https://github.com/${facts.owner}`],
+      },
       { '@type': 'WebSite', '@id': `${facts.homeUrl}#website`, name: facts.name, url: facts.homeUrl, description: facts.description },
       {
         '@type': 'SoftwareApplication',
@@ -692,7 +716,13 @@ export function structuredDataOf(facts) {
         description: facts.description,
         softwareVersion: facts.version,
         applicationCategory: 'DeveloperApplication',
+        // The systems the product's own CI runs the installed binary on (docs/platforms.md of the product).
+        operatingSystem: 'Linux, macOS, Windows',
         license: `https://spdx.org/licenses/${facts.license}.html`,
+        image: `${facts.homeUrl}og.png`,
+        publisher: { '@id': `${facts.homeUrl}#organization` },
+        installUrl: facts.npmUrl,
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
         sameAs: [
           facts.repoUrl,
           facts.npmUrl,
@@ -719,10 +749,17 @@ export function headOfTheRecord({ title, description, facts }) {
   return { title, description, canonical: `${facts.homeUrl}record/`, structuredData: structuredDataOf(facts) };
 }
 
-/** The sitemap with one address more, the one a page the build writes after Astro is at; it stops if it is already there. */
-export function sitemapWith(xml, address) {
+/**
+ * The sitemap with one address more, the one a page the build writes after Astro is at (it stops if it is already there),
+ * and with `lastmod` on every address: the date of the release the site is built from (`YYYY-MM-DD`), the same for
+ * every page and not the build's clock, so two builds of one tag give the same bytes.
+ */
+export function sitemapWith(xml, address, lastmod) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(lastmod ?? '')) throw new Error(`the sitemap's lastmod is a date as YYYY-MM-DD, not ${lastmod}`);
   const entry = `<url><loc>${address}</loc></url>`;
   if (!xml.includes('</urlset>')) throw new Error('the sitemap is not the shape the site reads');
   if (xml.includes(entry)) throw new Error(`the sitemap already lists ${address}`);
-  return xml.replace('</urlset>', () => `${entry}</urlset>`);
+  return xml
+    .replace('</urlset>', () => `${entry}</urlset>`)
+    .replace(/<url><loc>([^<]*)<\/loc><\/url>/g, (_, loc) => `<url><loc>${loc}</loc><lastmod>${lastmod}</lastmod></url>`);
 }

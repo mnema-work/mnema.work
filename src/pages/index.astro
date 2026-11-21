@@ -29,6 +29,7 @@ const site = (Astro.site ?? new URL('https://mnema.work/')).href;
 const card = `${site}og.png`;
 const facts = {
   name: 'mnema',
+  owner: home.owner,
   description: home.description,
   version: home.version,
   license: 'Apache-2.0',

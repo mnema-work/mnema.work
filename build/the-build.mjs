@@ -27,7 +27,7 @@ import { emptyMarkSvg, faviconPng, faviconSvg, markSvg, theSources } from './the
 import { hostsOf, installOf, MEASURED, measuredOf, verdictLinesOf } from './the-home.mjs';
 import { HOSTS_DIR, ownersOf, withLogos } from './the-hosts.mjs';
 import { ACCENT, INK, PAGE, paletteCss } from './the-palette.mjs';
-import { tagOf } from './the-product.mjs';
+import { releaseDateOf, tagOf } from './the-product.mjs';
 import { theFailureOfTheCommit, theRefusalOfTheBinary, theVerdictOfTheCommit } from './the-record.mjs';
 import { CONTACT, SITE, SITE_URL } from './the-site.mjs';
 
@@ -169,6 +169,7 @@ export async function prepare({ root, site = SITE, check = false }) {
         },
         contact: CONTACT,
         description: facts.description,
+        owner: facts.owner,
         version: facts.version,
         tag: facts.tag,
         card: { alt: pitchOf(withoutWhatIsNotOnTheSite(readme, 'README.md')).title },
@@ -223,12 +224,12 @@ export async function writeTheCard({ root, out = join(SITE, 'dist') }) {
 
 /**
  * What /record/ needs besides the page the binary wrote: its line in the sitemap, which Astro wrote before the page
- * existed. Its head is not completed here: `theHeadOfTheRecord` is what `mnema site --head` is handed.
+ * existed, and the release date every line of the sitemap carries as `lastmod`. Its head is not completed here: `theHeadOfTheRecord` is what `mnema site --head` is handed.
  */
 export async function completeTheSitemap({ root, out = join(SITE, 'dist') }) {
   const facts = await theFacts(root);
   const map = join(out, 'sitemap-0.xml');
-  writeFileSync(map, sitemapWith(readFileSync(map, 'utf8'), `${facts.homeUrl}record/`));
+  writeFileSync(map, sitemapWith(readFileSync(map, 'utf8'), `${facts.homeUrl}record/`, releaseDateOf(root)));
 }
 
 /** What /record/ says of itself: its two entries of the microcopy, read where `prepare` wrote them, and the facts. */

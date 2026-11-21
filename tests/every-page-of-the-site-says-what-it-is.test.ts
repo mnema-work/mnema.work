@@ -12,6 +12,12 @@
  *   - THE STRUCTURED DATA IS BUILT FROM FACTS (`structuredDataOf`), is on the landing and on `/record/` and on no
  *     other page, names GitHub, npm and the two extension stores as where the software is, and carries no rating
  *     and no review on any page.
+ *   - THE HOME'S STRUCTURED DATA ALSO NAMES ITS PUBLISHER (an Organization with a logo), its image, its repository, its
+ *     install address, its operating systems and a price of 0, each from a fact the site holds.
+ *   - EVERY LINE OF THE SITEMAP CARRIES `lastmod`: the date of the release the site is built from, the same for every
+ *     page and never the build's clock.
+ *   - EVERY PAGE OF `docs/` SHARES UNDER THE NAME OF THE PRODUCT: its `og:title` and `twitter:title` are
+ *     `<title> · mnema`, and its `twitter:description` is its description.
  *   - A PAGE OF `docs/` IS DESCRIBED BY THE FIRST SENTENCE OF ITS PROSE, or by its own `<!-- description: ... -->`
  *     line (`descriptionOf`), read and never typed in the build; each is unique and at most 160 characters.
  *
@@ -28,6 +34,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { theFacts } from '../build/the-build.mjs';
+import { releaseDateOf } from '../build/the-product.mjs';
 import {
   copyOf,
   DESCRIPTION_CHARS,
@@ -36,6 +43,7 @@ import {
   jsonLdOf,
   pageOf,
   sitemapWith,
+  socialHeadOf,
   structuredDataOf,
 } from '../build/the-pages.mjs';
 import { DIST, htmlFiles, ROOT, readText, SITE, tracked } from './support/reading-the-site.js';
@@ -47,6 +55,7 @@ const when = BUILT ? describe : describe.skip;
 
 const FACTS = {
   name: 'r',
+  owner: 'o',
   description: 'The description of the package.',
   version: '1.2.3',
   license: 'Apache-2.0',
@@ -112,10 +121,10 @@ describe('what a page of docs/ says of itself is the first sentence of its prose
 describe('the structured data is the facts, with where the software is found and no rating', () => {
   const data = structuredDataOf(FACTS) as { '@graph': Record<string, unknown>[] };
 
-  it('is a WebSite and a SoftwareApplication of the home, with the version and the places it is found', () => {
-    expect(data['@graph'].map((n) => n['@type'])).toEqual(['WebSite', 'SoftwareApplication']);
-    expect(data['@graph'][0]).toMatchObject({ url: 'https://o.github.io/r/', name: 'r' });
-    expect(data['@graph'][1]).toMatchObject({
+  it('is an Organization, a WebSite and a SoftwareApplication of the home, with the version and the places it is found', () => {
+    expect(data['@graph'].map((n) => n['@type'])).toEqual(['Organization', 'WebSite', 'SoftwareApplication']);
+    expect(data['@graph'][1]).toMatchObject({ url: 'https://o.github.io/r/', name: 'r' });
+    expect(data['@graph'][2]).toMatchObject({
       softwareVersion: '1.2.3',
       description: 'The description of the package.',
       license: 'https://spdx.org/licenses/Apache-2.0.html',
@@ -128,8 +137,31 @@ describe('the structured data is the facts, with where the software is found and
     });
   });
 
+  it('names its publisher with a logo, and gives the application an image, a repository, an install address, systems and a price of 0', () => {
+    expect(data['@graph'][0]).toEqual({
+      '@type': 'Organization',
+      '@id': 'https://o.github.io/r/#organization',
+      name: 'o',
+      url: 'https://o.github.io/r/',
+      logo: { '@type': 'ImageObject', url: 'https://o.github.io/r/favicon.png' },
+      sameAs: ['https://github.com/o'],
+    });
+    expect(data['@graph'][2]).toMatchObject({
+      image: 'https://o.github.io/r/og.png',
+      publisher: { '@id': 'https://o.github.io/r/#organization' },
+      codeRepository: 'https://github.com/o/r',
+      installUrl: 'https://www.npmjs.com/package/@r/code',
+      operatingSystem: 'Linux, macOS, Windows',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    });
+  });
+
+  it('offers no search box: the site has no address that takes a query', () => {
+    expect(JSON.stringify(data)).not.toContain('SearchAction');
+  });
+
   it('carries no rating and no review, whatever the facts say', () => {
-    expect(JSON.stringify(data)).not.toMatch(/rating|review/i);
+    expect(JSON.stringify(data)).not.toMatch(/aggregateRating|ratingValue|"@type":"Review"|"review"/);
   });
 
   it('escapes every < of the text, so no value closes the script it sits in', () => {
@@ -151,12 +183,39 @@ describe('the head of /record/ and the sitemap line the build adds after Astro',
 
   it('adds one address to the sitemap, and stops at one already there or at a file that is not a sitemap', () => {
     const xml = '<urlset><url><loc>https://o.github.io/r/</loc></url></urlset>';
-    const out = sitemapWith(xml, 'https://o.github.io/r/record/') as string;
+    const out = sitemapWith(xml, 'https://o.github.io/r/record/', '2026-11-19') as string;
     expect(out).toBe(
-      '<urlset><url><loc>https://o.github.io/r/</loc></url><url><loc>https://o.github.io/r/record/</loc></url></urlset>',
+      '<urlset><url><loc>https://o.github.io/r/</loc><lastmod>2026-11-19</lastmod></url><url><loc>https://o.github.io/r/record/</loc><lastmod>2026-11-19</lastmod></url></urlset>',
     );
-    expect(() => sitemapWith(out, 'https://o.github.io/r/record/')).toThrow('already lists');
-    expect(() => sitemapWith('<html></html>', 'x')).toThrow('not the shape');
+    expect(() => sitemapWith(xml.replace('</urlset>', '<url><loc>x</loc></url></urlset>'), 'x', '2026-11-19')).toThrow(
+      'already lists',
+    );
+    expect(() => sitemapWith('<html></html>', 'x', '2026-11-19')).toThrow('not the shape');
+  });
+
+  it('dates every line with the date it is given, the same bytes every time, and refuses a lastmod that is not a date', () => {
+    const xml = '<urlset><url><loc>https://o.github.io/r/</loc></url><url><loc>https://o.github.io/r/a/</loc></url></urlset>';
+    const once = sitemapWith(xml, 'https://o.github.io/r/record/', '2026-11-19') as string;
+    expect(once.match(/<lastmod>2026-11-19<\/lastmod>/g)).toHaveLength(3);
+    expect(sitemapWith(xml, 'https://o.github.io/r/record/', '2026-11-19')).toBe(once);
+    for (const bad of [undefined, '', 'today', '2026-11-19T10:00:00Z']) {
+      expect(() => sitemapWith(xml, 'x', bad as string)).toThrow('lastmod');
+    }
+  });
+});
+
+describe('the social tags of a page of docs/ name the product', () => {
+  it('are og:title and twitter:title as "<title> · mnema" and twitter:description as the description', () => {
+    expect(JSON.parse(socialHeadOf({ title: 'Install', description: 'How.' }))).toEqual([
+      { tag: 'meta', attrs: { property: 'og:title', content: 'Install · mnema' } },
+      { tag: 'meta', attrs: { name: 'twitter:title', content: 'Install · mnema' } },
+      { tag: 'meta', attrs: { name: 'twitter:description', content: 'How.' } },
+    ]);
+  });
+
+  it('are in the frontmatter of the page the build writes', () => {
+    const out = pageOf({ name: 'a', markdown: '# A\n\nSays more.\n', facts: { ...FACTS, base: '/r' }, docs: new Set(['a']) }) as string;
+    expect(out).toContain(`head: ${socialHeadOf({ title: 'A', description: 'Says more.' })}\n`);
   });
 });
 
@@ -273,6 +332,29 @@ when('the built pages', () => {
     expect(listed).toContain(`${facts.homeUrl}record/`);
     expect([...listed].sort()).toEqual([...pages].sort());
     expect(new Set(listed).size, 'an address is listed twice').toBe(listed.length);
+  });
+
+  it('dates every address of the sitemap with the date of the release it is built from, /record/ included', () => {
+    const sitemap = readText(join(DIST, 'sitemap-0.xml'));
+    const urls = [...sitemap.matchAll(/<url>([\s\S]*?)<\/url>/g)].map((m) => m[1] as string);
+    const date = releaseDateOf(ROOT);
+    expect(date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(urls.length).toBeGreaterThan(15);
+    for (const url of urls) expect(url, 'an address is not dated by the release').toMatch(new RegExp(`<lastmod>${date}</lastmod>$`));
+    expect(urls.some((u) => u.includes(`${facts.homeUrl}record/`))).toBe(true);
+  });
+
+  it('names the product in the og:title and twitter:title of every page of docs/, and gives it a twitter:description', () => {
+    const docs = files.filter((f) => f.startsWith('docs/'));
+    expect(docs.length).toBeGreaterThan(10);
+    for (const file of docs) {
+      const title = (all(file, /<title>([^<]+)<\/title>/g)[0] ?? '').replace(/ \| mnema$/, '');
+      const description = all(file, /<meta name="description" content="([^"]*)"/g)[0];
+      expect(all(file, /<meta property="og:title" content="([^"]*)"/g), `${file}: og:title`).toEqual([`${title} · mnema`]);
+      expect(all(file, /<meta name="twitter:title" content="([^"]*)"/g), `${file}: twitter:title`).toEqual([`${title} · mnema`]);
+      expect(all(file, /<meta name="twitter:description" content="([^"]*)"/g), `${file}: twitter:description`).toEqual([description]);
+      expect(all(file, /<meta property="og:type" content="([^"]*)"/g), `${file}: og:type`).toEqual(['article']);
+    }
   });
 
   it('carries the structured data of structuredDataOf on the landing and on /record/ and on no other page', () => {

@@ -102,7 +102,7 @@ describe('the cards of the groups', () => {
   });
 
   it('write the page as a standard page of the docs, with its sidebar and the menu of a phone, and no table of contents', () => {
-    expect(page()).toMatch(/^---\ntitle: "T"\ndescription: "D"\ntableOfContents: false\n---\n/);
+    expect(page()).toMatch(/^---\ntitle: "T"\ndescription: "D"\ntableOfContents: false\nhead: \[.*\]\n---\n/);
     expect(page()).not.toContain('splash');
   });
 });

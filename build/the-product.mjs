@@ -61,3 +61,9 @@ export function tagOf(root) {
   if (tag !== `v${version}`) throw new Error(`${root} is at ${tag}, and @mnema/code there says ${version}`);
   return tag;
 }
+
+/** The date of the release a checkout is at, `YYYY-MM-DD`: the committer date of the tagged commit, which no build changes. */
+export function releaseDateOf(root) {
+  tagOf(root);
+  return git(root, 'log', '-1', '--format=%cs', 'HEAD');
+}

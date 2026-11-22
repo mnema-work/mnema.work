@@ -220,14 +220,31 @@ function cssRulesOf(css: string): { selectors: string[]; body: string }[] {
 
 /** The classes of the hosts strip: a selector made only of these and ending in `img` reaches a picture inside it. */
 const STRIP_WORDS = new Set(['home', 'hosts-strip', 'hosts', 'pair', 'mark', 'wrap', 'ctr', 'mono', 'ul', 'li', 'a', 'section', 'div', 'main', 'body', 'html']);
-function reachesAnImageOfTheStrip(selector: string): boolean {
-  const parts = selector.split(/[\s>+~]+/).filter((x) => x !== '');
-  // A rule scoped by the framework to a component's own class (`:where(.astro-xxxx)`) reaches only that component's elements; the strip's pictures carry no such class.
-  if (selector.includes('.astro-')) return false;
+const SCOPE = /:where\(\.(astro-[\w-]+)\)|\.(astro-[\w-]+)/g;
+/**
+ * Whether a selector reaches a picture of the hosts strip. A rule the framework scoped to a component's own class
+ * (`:where(.astro-xxxx)`) reaches only the elements that carry that class: it counts only when `carried`, the scope classes
+ * the strip's pictures carry in the built page, holds it. In a source file there is no scope class, and `carried` is empty.
+ */
+function reachesAnImageOfTheStrip(selector: string, carried: ReadonlySet<string> = new Set()): boolean {
+  const scopes = [...selector.matchAll(SCOPE)].map((m) => m[1] ?? m[2] ?? '');
+  if (scopes.some((s) => !carried.has(s))) return false;
+  const parts = selector.replace(SCOPE, '').split(/[\s>+~]+/).filter((x) => x !== '');
   if (parts.length === 0 || !/^img(?:[:[].*)?$/.test(parts[parts.length - 1] ?? '')) return false;
   return parts.slice(0, -1).every((p) => (p.match(/(?:^|[.#])([a-z][\w-]*)/gi) ?? []).every((w) => STRIP_WORDS.has(w.replace(/^[.#]/, ''))));
 }
-const fixesASize = (body: string): boolean => /(?:^|[;\s])(?:height|width)\s*:/.test(body);
+/** A declaration that fixes the size of a box: height and width, their max- and min- forms, and the logical block-size and inline-size. */
+const fixesASize = (body: string): boolean => /(?:^|[;\s])(?:(?:max|min)-)?(?:height|width|block-size|inline-size)\s*:/.test(body);
+
+/** The text of the `<style>` blocks of an Astro component. */
+const styleBlocksOf = (astro: string): string[] => [...astro.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1] ?? '');
+
+/** The Astro components that render the hosts strip, from `src/components/`, as paths from the site's root. */
+function stripComponents(): string[] {
+  const walk = (dir: string): string[] =>
+    readdirSync(join(SITE, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : e.name.endsWith('.astro') ? [`${dir}/${e.name}`] : []));
+  return walk('src/components').filter((f) => /class="[^"]*\bhosts-strip\b/.test(readText(join(SITE, f))));
+}
 
 describe('the Blossom of OpenAI, which the product shows at 40', () => {
   it("is Codex's logo, the product's white file (the page is dark), at height 40 where every other logo is at 20", () => {
@@ -238,22 +255,36 @@ describe('the Blossom of OpenAI, which the product shows at 40', () => {
   it("is not squeezed to 20 by the page's style: no rule of the styles that reaches a picture of the hosts strip sets a fixed height or width", () => {
     const home = readText(join(SITE, 'src/styles/home.css'));
     expect(/^\.home \.mark img \{([^}]*)\}/m.exec(home)?.[1] ?? '', 'the rule for the logos is there').toContain('display');
-    const rules = readdirSync(join(SITE, 'src/styles'))
-      .filter((f) => f.endsWith('.css'))
-      .flatMap((f) => cssRulesOf(readText(join(SITE, 'src/styles', f))).map((r) => ({ ...r, f })));
-    expect(rules.filter((r) => r.selectors.some(reachesAnImageOfTheStrip)).length, 'the rules read are there').toBeGreaterThan(0);
-    expect(rules.filter((r) => r.selectors.some(reachesAnImageOfTheStrip) && fixesASize(r.body)).map((r) => `${r.f}: ${r.selectors.join(', ')}`)).toEqual([]);
+    const components = stripComponents();
+    expect(components, 'the component that renders the strip is found').toContain('src/components/home/HostsStrip.astro');
+    const rules = [
+      ...readdirSync(join(SITE, 'src/styles'))
+        .filter((f) => f.endsWith('.css'))
+        .flatMap((f) => cssRulesOf(readText(join(SITE, 'src/styles', f))).map((r) => ({ ...r, f }))),
+      ...components.flatMap((f) => styleBlocksOf(readText(join(SITE, f))).flatMap((css) => cssRulesOf(css).map((r) => ({ ...r, f })))),
+    ];
+    expect(rules.filter((r) => r.selectors.some((s) => reachesAnImageOfTheStrip(s))).length, 'the rules read are there').toBeGreaterThan(0);
+    expect(rules.filter((r) => r.selectors.some((s) => reachesAnImageOfTheStrip(s)) && fixesASize(r.body)).map((r) => `${r.f}: ${r.selectors.join(', ')}`)).toEqual([]);
   });
 
   it('sees a rule that pins the size of a picture of the strip, however the selector reaches it', () => {
-    for (const css of ['.home .hosts img { height: 20px }', '.home .hosts-strip img{width:20px;display:block}', '.home .pair ul img { height: 2rem }', '.home img { height: 20px }', 'img { height: 20px }']) {
+    for (const css of ['.home .hosts img { height: 20px }', '.home .hosts-strip img{width:20px;display:block}', '.home .mark img { max-height: 20px }', '.home .mark img{min-width:20px}', '.home .mark img { block-size: 20px }', '.home .mark img { max-inline-size: 20px; }', '.home .mark img { min-block-size: 2rem }', '.home .pair ul img { height: 2rem }', '.home img { height: 20px }', 'img { height: 20px }']) {
       const [r] = cssRulesOf(css);
-      expect(r?.selectors.some(reachesAnImageOfTheStrip) && fixesASize(r?.body ?? ''), css).toBe(true);
+      expect(r?.selectors.some((s) => reachesAnImageOfTheStrip(s)) && fixesASize(r?.body ?? ''), css).toBe(true);
     }
-    for (const css of ['.site-title img { height: 20px }', '.home .mark img { display: block; border-radius: 4px; }', '.home .hosts { gap: 10px }']) {
+    for (const css of ['.site-title img { height: 20px }', '.home .mark img { display: block; border-radius: 4px; }', '.home .hosts { gap: 10px }', '.home .mark img { line-height: 20px }']) {
       const [r] = cssRulesOf(css);
-      expect(r?.selectors.some(reachesAnImageOfTheStrip) && fixesASize(r?.body ?? ''), css).toBe(false);
+      expect(r?.selectors.some((s) => reachesAnImageOfTheStrip(s)) && fixesASize(r?.body ?? ''), css).toBe(false);
     }
+  });
+
+  it('reads the style blocks of the component that renders the strip, and a scoped rule counts only where the strip carries its scope class', () => {
+    expect(styleBlocksOf('---\n---\n<div class="hosts-strip"></div>\n<style>.hosts img{height:20px}</style>')).toEqual(['.hosts img{height:20px}']);
+    const scoped = '.hosts:where(.astro-abc123) img:where(.astro-abc123)';
+    expect(reachesAnImageOfTheStrip(scoped), 'a scope class no picture of the strip carries').toBe(false);
+    expect(reachesAnImageOfTheStrip(scoped, new Set(['astro-other'])), 'another scope class').toBe(false);
+    expect(reachesAnImageOfTheStrip(scoped, new Set(['astro-abc123'])), 'the strip carries it').toBe(true);
+    expect(reachesAnImageOfTheStrip('.site-title:where(.astro-abc123) img', new Set(['astro-abc123']))).toBe(false);
   });
 
   it("has its row and its section in the sources, and the product's file, byte for byte", () => {
@@ -295,11 +326,14 @@ when('the built home page', () => {
     expect(main(), 'the Blossom is drawn at 40').toMatch(/<img src="\/hosts\/OAI_OpenAI-Blossom_White\.svg" alt(?:="")? width="40" height="40" loading="lazy">/);
   });
 
-  it("has no stylesheet rule that sets a fixed height or width on the hosts' pictures", () => {
+  it("has no stylesheet rule that sets a size on the hosts' pictures, a rule scoped to a component counting where the strip's pictures carry its class", () => {
     const rules = cssRulesOf(builtCss());
+    // The scope classes the pictures of the strip carry in the built page (`astro-xxxx`): a scoped rule reaches them only by those.
+    const carried = new Set([...main().matchAll(/<img\b[^>]*\ssrc="\/hosts\/[^"]*"[^>]*>/g)].flatMap((m) => [...m[0].matchAll(/\bastro-[\w-]+/g)].map((c) => c[0])));
+    const reaches = (r: { selectors: string[] }): boolean => r.selectors.some((s) => reachesAnImageOfTheStrip(s, carried));
     expect(rules.length, 'the built stylesheet is read').toBeGreaterThan(50);
-    expect(rules.filter((r) => r.selectors.some(reachesAnImageOfTheStrip)).length, 'the rule for the logos is built').toBeGreaterThan(0);
-    expect(rules.filter((r) => r.selectors.some(reachesAnImageOfTheStrip) && fixesASize(r.body)).map((r) => r.selectors.join(', '))).toEqual([]);
+    expect(rules.filter(reaches).length, 'the rule for the logos is built').toBeGreaterThan(0);
+    expect(rules.filter((r) => reaches(r) && fixesASize(r.body)).map((r) => r.selectors.join(', '))).toEqual([]);
   });
 
   it('serves each logo exactly as the vendor published it, and shows no other picture', () => {

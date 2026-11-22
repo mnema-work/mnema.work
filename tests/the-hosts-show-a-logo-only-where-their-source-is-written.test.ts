@@ -209,6 +209,28 @@ describe('the logos this repository holds', () => {
   });
 });
 
+describe('the Blossom of OpenAI, which the product shows at 40', () => {
+  it("is Codex's logo, the product's white file (the page is dark), at height 40 where every other logo is at 20", () => {
+    expect(LOGOS.Codex).toEqual({ file: 'OAI_OpenAI-Blossom_White.svg', href: 'https://openai.com/codex/', alt: '', width: 40, height: 40, owner: 'OpenAI' });
+    expect(Object.entries(LOGOS).filter(([, logo]) => logo.height !== 20).map(([host]) => host)).toEqual(['Codex']);
+  });
+
+  it("is not squeezed to 20 by the page's style: the height of the picture is the one its element carries", () => {
+    const css = readText(join(SITE, 'src/styles/home.css'));
+    const rule = /^\.home \.mark img \{([^}]*)\}/m.exec(css)?.[1] ?? '';
+    expect(rule, 'the rule for the logos is there').toContain('display');
+    expect(rule).not.toMatch(/\b(?:height|width)\s*:/);
+  });
+
+  it("has its row and its section in the sources, and the product's file, byte for byte", () => {
+    const row = rowsOf(sources()).find((r) => r.file === 'OAI_OpenAI-Blossom_White.svg');
+    expect(row?.host).toBe('Codex');
+    expect(readFileSync(join(SITE, HOSTS_DIR, 'OAI_OpenAI-Blossom_White.svg'), 'utf8')).toMatch(/^<svg width="716" height="716" viewBox="0 0 716 716"/);
+    expect(sources()).toContain('## Codex\n');
+    expect(sources()).not.toContain('The host shown by name');
+  });
+});
+
 when('the built home page', () => {
   const page = (): string => readText(join(DIST, 'index.html'));
   const main = (): string => /<main\b[^>]*>([\s\S]*)<\/main>/.exec(page())?.[1] ?? '';
@@ -218,7 +240,7 @@ when('the built home page', () => {
   it('shows each host of the README: by its logo and its name where it has a logo, by its name alone where it has none', () => {
     const list = hosts();
     expect(list.length).toBeGreaterThanOrEqual(12);
-    expect(list.filter(({ name }) => !(name in LOGOS)).map((h) => h.name), 'the hosts shown by name alone').toEqual(['Codex']);
+    expect(list.filter(({ name }) => !(name in LOGOS)).map((h) => h.name), 'the hosts shown by name alone').toEqual([]);
     for (const { name } of list) {
       const li = new RegExp(`(<li class="mark"><a href="([^"]+)"><img src="([^"]+)" alt(?:="([^"]*)")? width="\\d+" height="\\d+" loading="lazy"></a></li>)?<li class="host [a-z]+">${escape(name)} <b>[a-d]</b></li>`).exec(main());
       expect(li, `${name} is shown`).not.toBeNull();
@@ -231,6 +253,7 @@ when('the built home page', () => {
         expect(li?.[4] ?? '').toBe(logo.alt);
       }
     }
+    expect(main(), 'the Blossom is drawn at 40').toMatch(/<img src="\/hosts\/OAI_OpenAI-Blossom_White\.svg" alt(?:="")? width="40" height="40" loading="lazy">/);
   });
 
   it('serves each logo exactly as the vendor published it, and shows no other picture', () => {
@@ -258,6 +281,7 @@ when('the built home page', () => {
       'Antigravity CLI': 'Google',
       'Factory Droid': 'Factory',
       Goose: 'the Goose project',
+      Codex: 'OpenAI',
     };
     expect(Object.fromEntries(Object.entries(LOGOS).map(([host, logo]) => [host, logo.owner]))).toEqual(owners);
     for (const owner of new Set(Object.values(owners))) expect(footer, `the owner ${owner}`).toContain(owner);

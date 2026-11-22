@@ -20,6 +20,7 @@ page's footer says that the logos identify the hosts mnema works with and imply 
 | `antigravity-favicon.svg` | Antigravity CLI | https://antigravity.google/favicon.svg (the icon antigravity.google serves) | 2026-11-09 | `de7911c3d206a3d2fe3d5b4e76e84b185c581d7a259406f64db247b5b824f02e` |
 | `factory-docs-favicon.svg` | Factory Droid | https://docs.factory.ai/favicon.svg (the icon docs.factory.ai serves; the same bytes as https://factory.com/icon.svg; no rule of use found: https://factory.ai/brand and https://factory.ai/press answer 404 and docs.factory.ai has no brand page) | 2026-11-10 | `416ea4962d7b0b8be8bec7f7190c13c22d5f20fdcac401aa72886fd5c81d2fb2` |
 | `logo_dark.png` | Goose | https://raw.githubusercontent.com/aaif-goose/goose/72b8db883ff827f5aa0a0955e2007d1407f5d9b9/documentation/static/img/logo_dark.png (the project's own repository: the white mark; the same file as before, same sha256; no rule of use found: the home page https://goose-docs.ai and the repository tree at this commit have no brand or logo guideline) | 2026-11-10 | `2c65dc076e4de0726755ebe9f69b7f5a87e6e724a3580663f1b6b1d7ded66cfc` |
+| `OAI_OpenAI-Blossom_White.svg` | Codex | `OAI_OpenAI-Blossom_White.svg` in OpenAI's logo kit, downloaded from https://openai.com/brand/ (OpenAI's own brand page) | 2026-11-11 | `01d158767c4eec0e47bd617e67759c33da0accd1438be1a8d29dfdb99ce87285` |
 
 ## Claude Code
 
@@ -87,6 +88,10 @@ The rule: the project's repository (https://github.com/aaif-goose/goose) holds n
 
 What this site does: shows the logo file of the project's own repository, unmodified, beside the name "Goose" in text, and says no endorsement.
 
-## The host shown by name
+## Codex
 
-Codex is shown by its name alone. https://openai.com/brand answered 403 to an automated request on 2026-11-09 and was not worked around, so its rule of use is unread here; the repository https://github.com/openai/codex holds no logo file (its images are a splash screenshot and the icons of sample skills), and https://learn.chatgpt.com/docs, which the Codex page answers from, showed no logo or brand text. A host that is new in the product's README is also shown by its name until a file and its row are added.
+The rule, from https://openai.com/brand/. Under "Do:": "Use the logo only when it directly relates to OpenAI services." and "Use the logo exactly as provided and acknowledge that it belongs to OpenAI." Under "Don't:": "Use the logo without permission or outside OpenAI’s terms." and "Misrepresent your relationship with OpenAI, imply endorsement, or confuse users about sponsorship." and "Use the logo more prominently than your own or in unrelated contexts." The same page says "DON'T use the Blossom as the primary branding" and "DON'T add any colors to the Blossom", and that by using the logos you agree to OpenAI's Marks usage terms.
+
+What this site does: shows the Blossom in white (the page is dark), the file of OpenAI's logo kit as the product ships it, unmodified, at height 40 as the product's README does (the file draws the mark in about half of its box, so at 20 it reads as a dot), linked to https://openai.com/codex/. The word "Codex" is the name of the host, in a separate element beside the mark, and the mark is not the primary branding of this page. This site has no written permission from OpenAI on file: it uses the logo as the product's README uses it, under the same terms, and says in its footer that the logos imply no endorsement.
+
+A host that is new in the product's README is shown by its name until a file and its row are added.

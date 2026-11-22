@@ -286,7 +286,7 @@ body.home {
 .home .pair ul { list-style: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 8px; }
 .home .mark a { display: inline-flex; align-items: center; border-radius: 6px; }
 .home .mark { display: inline-flex; align-items: center; }
-.home .mark img { display: block; height: 20px; width: auto; border-radius: 4px; }
+.home .mark img { display: block; border-radius: 4px; }
 .home .measured { margin-top: 72px; text-align: center; }
 .home .measured h3 { font-size: 22px; }
 .home .measured .lead { font-size: 18px; margin-top: 8px; }

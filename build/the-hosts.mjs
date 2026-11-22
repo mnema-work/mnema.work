@@ -30,6 +30,7 @@ export const LOGOS = Object.freeze({
   'Antigravity CLI': { file: 'antigravity-favicon.svg', href: 'https://antigravity.google', alt: '', width: 20, height: 20, owner: 'Google' },
   'Factory Droid': { file: 'factory-docs-favicon.svg', href: 'https://github.com/Factory-AI/factory', alt: '', width: 20, height: 20, owner: 'Factory' },
   Goose: { file: 'logo_dark.png', href: 'https://github.com/aaif-goose/goose', alt: '', width: 20, height: 20, owner: 'the Goose project' },
+  Codex: { file: 'OAI_OpenAI-Blossom_White.svg', href: 'https://openai.com/codex/', alt: '', width: 40, height: 40, owner: 'OpenAI' },
 });
 
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');

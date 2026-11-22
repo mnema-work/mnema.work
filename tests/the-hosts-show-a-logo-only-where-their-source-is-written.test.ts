@@ -209,17 +209,51 @@ describe('the logos this repository holds', () => {
   });
 });
 
+/** The rules of a stylesheet, flat: each selector of a comma list apart, and the block's declarations. */
+function cssRulesOf(css: string): { selectors: string[]; body: string }[] {
+  const out: { selectors: string[]; body: string }[] = [];
+  for (const m of css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    out.push({ selectors: (m[1] ?? '').split(',').map((x) => x.trim()).filter((x) => x !== ''), body: m[2] ?? '' });
+  }
+  return out;
+}
+
+/** The classes of the hosts strip: a selector made only of these and ending in `img` reaches a picture inside it. */
+const STRIP_WORDS = new Set(['home', 'hosts-strip', 'hosts', 'pair', 'mark', 'wrap', 'ctr', 'mono', 'ul', 'li', 'a', 'section', 'div', 'main', 'body', 'html']);
+function reachesAnImageOfTheStrip(selector: string): boolean {
+  const parts = selector.split(/[\s>+~]+/).filter((x) => x !== '');
+  // A rule scoped by the framework to a component's own class (`:where(.astro-xxxx)`) reaches only that component's elements; the strip's pictures carry no such class.
+  if (selector.includes('.astro-')) return false;
+  if (parts.length === 0 || !/^img(?:[:[].*)?$/.test(parts[parts.length - 1] ?? '')) return false;
+  return parts.slice(0, -1).every((p) => (p.match(/(?:^|[.#])([a-z][\w-]*)/gi) ?? []).every((w) => STRIP_WORDS.has(w.replace(/^[.#]/, ''))));
+}
+const fixesASize = (body: string): boolean => /(?:^|[;\s])(?:height|width)\s*:/.test(body);
+
 describe('the Blossom of OpenAI, which the product shows at 40', () => {
   it("is Codex's logo, the product's white file (the page is dark), at height 40 where every other logo is at 20", () => {
     expect(LOGOS.Codex).toEqual({ file: 'OAI_OpenAI-Blossom_White.svg', href: 'https://openai.com/codex/', alt: '', width: 40, height: 40, owner: 'OpenAI' });
     expect(Object.entries(LOGOS).filter(([, logo]) => logo.height !== 20).map(([host]) => host)).toEqual(['Codex']);
   });
 
-  it("is not squeezed to 20 by the page's style: the height of the picture is the one its element carries", () => {
-    const css = readText(join(SITE, 'src/styles/home.css'));
-    const rule = /^\.home \.mark img \{([^}]*)\}/m.exec(css)?.[1] ?? '';
-    expect(rule, 'the rule for the logos is there').toContain('display');
-    expect(rule).not.toMatch(/\b(?:height|width)\s*:/);
+  it("is not squeezed to 20 by the page's style: no rule of the styles that reaches a picture of the hosts strip sets a fixed height or width", () => {
+    const home = readText(join(SITE, 'src/styles/home.css'));
+    expect(/^\.home \.mark img \{([^}]*)\}/m.exec(home)?.[1] ?? '', 'the rule for the logos is there').toContain('display');
+    const rules = readdirSync(join(SITE, 'src/styles'))
+      .filter((f) => f.endsWith('.css'))
+      .flatMap((f) => cssRulesOf(readText(join(SITE, 'src/styles', f))).map((r) => ({ ...r, f })));
+    expect(rules.filter((r) => r.selectors.some(reachesAnImageOfTheStrip)).length, 'the rules read are there').toBeGreaterThan(0);
+    expect(rules.filter((r) => r.selectors.some(reachesAnImageOfTheStrip) && fixesASize(r.body)).map((r) => `${r.f}: ${r.selectors.join(', ')}`)).toEqual([]);
+  });
+
+  it('sees a rule that pins the size of a picture of the strip, however the selector reaches it', () => {
+    for (const css of ['.home .hosts img { height: 20px }', '.home .hosts-strip img{width:20px;display:block}', '.home .pair ul img { height: 2rem }', '.home img { height: 20px }', 'img { height: 20px }']) {
+      const [r] = cssRulesOf(css);
+      expect(r?.selectors.some(reachesAnImageOfTheStrip) && fixesASize(r?.body ?? ''), css).toBe(true);
+    }
+    for (const css of ['.site-title img { height: 20px }', '.home .mark img { display: block; border-radius: 4px; }', '.home .hosts { gap: 10px }']) {
+      const [r] = cssRulesOf(css);
+      expect(r?.selectors.some(reachesAnImageOfTheStrip) && fixesASize(r?.body ?? ''), css).toBe(false);
+    }
   });
 
   it("has its row and its section in the sources, and the product's file, byte for byte", () => {
@@ -235,6 +269,11 @@ when('the built home page', () => {
   const page = (): string => readText(join(DIST, 'index.html'));
   const main = (): string => /<main\b[^>]*>([\s\S]*)<\/main>/.exec(page())?.[1] ?? '';
   const hosts = (): { name: string }[] => hostsOf(readText(join(ROOT, 'README.md'))).hosts;
+  const builtCss = (): string =>
+    readdirSync(join(DIST, '_astro'))
+      .filter((f) => f.endsWith('.css'))
+      .map((f) => readText(join(DIST, '_astro', f)))
+      .join('\n');
   const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
   it('shows each host of the README: by its logo and its name where it has a logo, by its name alone where it has none', () => {
@@ -254,6 +293,13 @@ when('the built home page', () => {
       }
     }
     expect(main(), 'the Blossom is drawn at 40').toMatch(/<img src="\/hosts\/OAI_OpenAI-Blossom_White\.svg" alt(?:="")? width="40" height="40" loading="lazy">/);
+  });
+
+  it("has no stylesheet rule that sets a fixed height or width on the hosts' pictures", () => {
+    const rules = cssRulesOf(builtCss());
+    expect(rules.length, 'the built stylesheet is read').toBeGreaterThan(50);
+    expect(rules.filter((r) => r.selectors.some(reachesAnImageOfTheStrip)).length, 'the rule for the logos is built').toBeGreaterThan(0);
+    expect(rules.filter((r) => r.selectors.some(reachesAnImageOfTheStrip) && fixesASize(r.body)).map((r) => r.selectors.join(', '))).toEqual([]);
   });
 
   it('serves each logo exactly as the vendor published it, and shows no other picture', () => {

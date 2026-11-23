@@ -35,8 +35,11 @@ export const stonesOf = (W) =>
     ? [[0.72, 0.34, Math.min(78, W * 0.07), 1.45, 0], [0.9, 0.66, 40, 1, 1.7], [0.46, 0.16, 28, 1, 3.1]]
     : [[0.5, 0.24, 60, 1.45, 0], [0.86, 0.5, 30, 1, 1.7], [0.2, 0.12, 22, 1, 3.1]];
 
-/** How much of the opening the iris fills: the brand's eye is 15.5 of 21. */
-const IRIS = 15.5 / 21;
+/**
+ * How much of the opening the iris fills in the hero: 0.43, the approved page's. The eye at the bar, the ring and the quick start
+ * is the brand's own, whose iris fills 15.5 of 21; in the hero the opening is a field's, large and open, and the iris is smaller.
+ */
+const IRIS = 0.43;
 
 /**
  * One frame of the hero. `field` is the brand's `{ line, smooth, relative, f }`; `t` is the time in milliseconds (0 for a frame at

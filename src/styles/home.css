@@ -328,7 +328,6 @@
 .home .sign .tick {
   fill: none;
   stroke: var(--on-accent);
-  stroke-width: 2.6;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -929,8 +928,9 @@
     padding-left: 20px;
   }
 
+  /* Room for the pill that pauses the motion, which sits at the foot of the hero, under the buttons. */
   .home .hero .txt {
-    padding-bottom: 44px;
+    padding-bottom: 96px;
   }
 
   .home .hero h1 {

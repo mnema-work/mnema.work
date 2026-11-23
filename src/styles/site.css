@@ -32,6 +32,7 @@ h1, h2, h3, h4 {
 
 /* The head: the eye and the word beside it (`src/components/SiteTitle.astro`), and the descriptor, which a narrow screen hides. */
 .site-title {
+  align-items: center;
   gap: 0.7rem;
   color: var(--sl-color-white);
 }

@@ -368,7 +368,16 @@ when('the built home page', () => {
   it('is made of real buttons and links, shows focus, and describes each picture in text', () => {
     const html = page();
     expect(html).not.toMatch(/\sonclick=|role="button"/);
-    expect([...html.matchAll(/<button\b[^>]*>/g)].every((m) => /type="button"/.test(m[0]) && /aria-label=/.test(m[0]))).toBe(true);
+    // A button's name is its visible text, or an aria-label that holds that text (WCAG 2.5.3, label in name).
+    for (const m of html.matchAll(/<button\b([^>]*)>([^<]*)<\/button>/g)) {
+      expect(m[1], 'a real button').toMatch(/type="button"/);
+      const label = /aria-label="([^"]*)"/.exec(m[1] ?? '')?.[1];
+      if (label !== undefined) expect(label.toLowerCase(), `the name of "${m[2]}" holds its text`).toContain((m[2] ?? '').toLowerCase());
+    }
+    expect(/<button[^>]*class="motion"[^>]*>([^<]*)<\/button>/.exec(html)?.[0], 'the pause button is named by its text alone').toMatch(/^<button type="button" class="motion" aria-pressed="false">Pause motion<\/button>$/);
+    const toggled = scriptOfTheHome();
+    expect(toggled, 'the text of the pause button changes in both states').toContain('Play motion');
+    expect(toggled, 'and the script gives it no other name').not.toMatch(/aria-label/);
     expect([...html.matchAll(/<button\b/g)].length, 'the copy button and the one that pauses the motion').toBeGreaterThanOrEqual(2);
     expect(sourceOf('src/styles/home.css')).toMatch(/:focus-visible\s*\{[^}]*outline:/);
     expect(html, 'no theme button: the page is dark').not.toMatch(/class="tgl"|data-theme/);
@@ -650,5 +659,54 @@ when('the eye is never inverted, on any ground, and its iris has no ring', () =>
     expect(field).toContain('class="field-iris"');
     const css = readText(join(SITE, 'src/styles/home.css'));
     expect(rulesOf(css).filter((r) => /field-iris/.test(r.selector) && /stroke/.test(r.body)), 'a stroke on the hero’s iris').toEqual([]);
+  });
+});
+
+when('the hero of the home page', () => {
+  const page = (): string => readText(join(DIST, 'index.html'));
+
+  it('blinks on the brand’s cycle: the stops of the hero are the stops of the eye drawn at the bar, which is the brand’s own', async () => {
+    const { CYCLE_MS, opennessAt } = await import('../build/the-hero-field.mjs');
+    const eye = /<svg[^>]*>(?:(?!<\/svg>)[\s\S])*<clipPath id="eye-bar">[\s\S]*?<\/svg>/.exec(page())?.[0] ?? '';
+    expect(eye, 'the eye of the bar is found').not.toBe('');
+    const animate = /<animate attributeName="ry" dur="([\d.]+)s"[^>]*keyTimes="([^"]+)"[^>]*values="([^"]+)"/.exec(eye);
+    expect(animate, 'the brand animates the lids of this eye').not.toBeNull();
+    expect(Number(animate?.[1]) * 1000, 'the length of the cycle').toBe(CYCLE_MS);
+    const times = (animate?.[2] ?? '').split(';').map(Number);
+    const ry = (animate?.[3] ?? '').split(';').map(Number);
+    const full = Number(/<ellipse cx="0" cy="0" rx="([\d.]+)"/.exec(eye)?.[1]);
+    expect(times.length).toBe(ry.length);
+    expect(ry.filter((v) => v / full < 0.1).length, 'the brand’s eye closes twice (once, then twice) in its cycle').toBe(2);
+    for (const [i, time] of times.entries()) {
+      expect(Math.abs(opennessAt(time * CYCLE_MS) - Math.min(1, (ry[i] ?? 0) / full)), `the hero at ${time} of the cycle`).toBeLessThan(0.05);
+    }
+  });
+
+  it('draws its iris at 0.43 of the opening, the approved page’s, and not at the brand’s eye’s 0.74', async () => {
+    const { stonesOf } = await import('../build/the-hero-field.mjs');
+    const iris = /<ellipse class="field-iris" cx="[\d.]+" cy="[\d.]+" rx="([\d.]+)" ry="([\d.]+)"/.exec(page());
+    const opening = (stonesOf(1440) as number[][])[0]?.[2] ?? 0;
+    expect(Number(iris?.[1]) / opening, 'the iris of the hero over its opening').toBeCloseTo(0.43, 2);
+    expect(iris?.[1]).toBe(iris?.[2]);
+  });
+
+  it('ticks the last step with the brand’s tick, read from the diagram the release carries', () => {
+    const asset = readText(join(ROOT, 'docs/assets/how-it-works-dark.svg'));
+    const drawn = /<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)" fill="[^"]*"\/><circle class="h[^>]*\/><path d="M([\d.]+),([\d.]+)(l[^"]*)" fill="none" stroke="[^"]*" stroke-width="([\d.]+)"/.exec(asset);
+    expect(drawn, 'the brand’s diagram has its ticked point').not.toBeNull();
+    const [cx, cy, r, x, y, rest, width] = [drawn?.[1], drawn?.[2], drawn?.[3], drawn?.[4], drawn?.[5], drawn?.[6], drawn?.[7]];
+    const start = `M${Math.round((Number(x) - Number(cx)) * 100) / 100},${Math.round((Number(y) - Number(cy)) * 100) / 100}`;
+    expect(page(), 'the tick of the steps is the brand’s').toContain(`<path class="tick" d="${start}${rest}" stroke-width="${width}" transform="scale(${Number(r) === 14 ? 1 : 14 / Number(r)})"/>`);
+    expect(readText(join(SITE, 'build/the-mark.mjs')), 'no tick is typed in the site').not.toMatch(/class="tick" d="M-?\d/);
+  });
+
+  it('keeps the pill that pauses the motion clear of the buttons on a phone: the hero holds room for it below them', () => {
+    const css = readText(join(SITE, 'src/styles/home.css'));
+    const motion = /\.home \.motion \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    const bottom = Number(/bottom:\s*(\d+)px/.exec(motion)?.[1]);
+    const phone = /@media \(max-width:\s*860px\)\s*\{([\s\S]*?)\n\}/.exec(css)?.[1] ?? '';
+    const room = Number(/\.home \.hero \.txt\s*\{[^}]*padding-bottom:\s*(\d+)px/.exec(phone)?.[1]);
+    // The pill is about 30 px high (a 11 px label, 6 px of padding each side and a border), and the page's own gap is 16 px.
+    expect(room, 'room under the buttons on a phone').toBeGreaterThanOrEqual(bottom + 30 + 16);
   });
 });

@@ -50,7 +50,7 @@ import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { theHeadOfTheRecord } from '../build/the-build.mjs';
 import { copyOf, recordBackLink, themeOf } from '../build/the-pages.mjs';
-import { cardSvg, markSvg, theBrand, theOutline } from '../build/the-mark.mjs';
+import { CARD_PNG, cardSvg, markSvg, theBrand, theOutline } from '../build/the-mark.mjs';
 import { sitePalette, themeColours } from '../build/the-palette.mjs';
 import { SITE_URL } from '../build/the-site.mjs';
 import { runInAVm } from './support/a-page-in-a-vm.js';
@@ -528,7 +528,7 @@ when('the built site', () => {
 
   it('draws the card from the brand: the field, the eye at rest, the word and the pitch as outlines, with no text, no motion and only the brand\'s colours', async () => {
     const require = createRequire(join(SITE, 'package.json'));
-    const sharp = require('sharp') as (input: Buffer) => { png: () => { toBuffer: () => Promise<Buffer> } };
+    const sharp = require('sharp') as (input: Buffer) => any;
     const brand = await theBrand(ROOT);
     const outline = await theOutline(ROOT);
     const { pitchOf } = await import('../build/the-pages.mjs');
@@ -542,11 +542,17 @@ when('the built site', () => {
     const ofTheBrand = new Map(Object.values(brand.PALETTE).map((h) => [String(h).toLowerCase(), true]));
     for (const [hex] of svg.matchAll(/#[0-9a-fA-F]{6}\b/g)) expect(ofTheBrand.has(hex.toLowerCase()), `${hex} is a colour of the brand`).toBe(true);
     const built = readFileSync(join(DIST, 'og.png'));
-    expect(built.equals(await sharp(Buffer.from(svg)).png().toBuffer()), 'og.png is not this card, rasterized').toBe(true);
+    expect(built.equals(await sharp(Buffer.from(svg)).png(CARD_PNG).toBuffer()), 'og.png is not this card, rasterized').toBe(true);
+    expect(built.length, 'og.png is a palette PNG, light').toBeLessThan(120_000);
+    // The palette moves no channel by more than 6 of 255 from the full-colour card.
+    const [a, b] = await Promise.all([sharp(Buffer.from(svg)).ensureAlpha().raw().toBuffer(), sharp(built).ensureAlpha().raw().toBuffer()]);
+    let worst = 0;
+    for (let i = 0; i < a.length; i += 1) worst = Math.max(worst, Math.abs((a[i] ?? 0) - (b[i] ?? 0)));
+    expect(worst, 'the palette changes no colour of the card visibly').toBeLessThanOrEqual(8);
     // Without the pitch's outlines it is another picture: the words are drawn.
     const bare = svg.replace(/<path fill="[^"]*" transform="scale\([^)]*\)" d="[^"]*"\/>/g, '');
     expect(bare).not.toBe(svg);
-    expect(built.equals(await sharp(Buffer.from(bare)).png().toBuffer()), 'og.png has no words').toBe(false);
+    expect(built.equals(await sharp(Buffer.from(bare)).png(CARD_PNG).toBuffer()), 'og.png has no words').toBe(false);
   }, 60_000);
 
   it('serves a 404 that leads into the site: three links at least, to pages the site holds', () => {

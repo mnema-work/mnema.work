@@ -23,7 +23,7 @@ import {
   verifyCommandOf,
   withoutWhatIsNotOnTheSite,
 } from './the-pages.mjs';
-import { blinkingMarkSvg, cardSvg, faviconPng, faviconSvg, fieldSource, FIELD_COPY, heroSvg, markSvg, ringOf, stepsSvg, theBrand, theOutline, wordmarkSvg } from './the-mark.mjs';
+import { blinkingMarkSvg, CARD_PNG, cardSvg, faviconPng, faviconSvg, fieldSource, FIELD_COPY, heroSvg, markSvg, ringOf, stepsSvg, theBrand, theOutline, wordmarkSvg } from './the-mark.mjs';
 import { contributorsOf, hostsOf, installOf, verdictLinesOf } from './the-home.mjs';
 import { frameOf } from './the-hero-field.mjs';
 import { HOSTS_DIR, ownersOf, withLogos } from './the-hosts.mjs';
@@ -248,7 +248,7 @@ export async function writeTheCard({ root, out = join(SITE, 'dist') }) {
   const outline = await theOutline(root);
   const { default: sharp } = await import('sharp');
   const pitch = pitchOf(withoutWhatIsNotOnTheSite(readFileSync(join(root, 'README.md'), 'utf8'), 'README.md'));
-  const png = await sharp(Buffer.from(cardSvg(brand, outline, pitch))).png().toBuffer();
+  const png = await sharp(Buffer.from(cardSvg(brand, outline, pitch))).png(CARD_PNG).toBuffer();
   writeFileSync(join(out, 'og.png'), png);
   return png;
 }

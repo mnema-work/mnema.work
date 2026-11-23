@@ -17,7 +17,7 @@
 // that is neither installed nor built, draws the same eye a release does; `outline.mjs` (it needs `opentype.js`) is loaded
 // only by the build that writes the card (`theOutline`).
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -49,6 +49,7 @@ export async function theBrand(root) {
   const load = (path) => import(pathToFileURL(join(root, path)).href);
   const [eye, palette, wordmark, field] = await Promise.all(Object.values(BRAND_FILES).map(load));
   return {
+    tick: tickOf(root),
     eye: eye.eye,
     blinkingInside: eye.blinkingInside,
     ALMOND: eye.ALMOND,
@@ -57,6 +58,27 @@ export async function theBrand(root) {
     wordmark: wordmark.wordmark,
     field: { line: field.line, smooth: field.smooth, relative: field.relative, f: field.f },
   };
+}
+
+/** The brand's picture of the diagram of how it works, which carries the one ticked point of the brand's signs. */
+const TICKED = 'docs/assets/how-it-works-dark.svg';
+
+/**
+ * The tick of the brand's ticked point (a record verified), read from the diagram the release carries rather than typed here:
+ * the brand draws it in `diagrams.mjs`, which needs `opentype.js` and is not loaded by a check, and does not export it. The
+ * path is read as it is drawn, relative to the centre of its point, and `r` is the radius of that point.
+ * @param {string} root
+ * @returns {{ d: string, width: number, r: number }}
+ */
+export function tickOf(root) {
+  const file = join(root, TICKED);
+  if (!existsSync(file)) throw new Error(`${root} has no ${TICKED}: the tick of the steps is read from it`);
+  const svg = readFileSync(file, 'utf8');
+  const m = /<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)" fill="[^"]*"\/><circle class="h[^>]*\/><path d="M([\d.]+),([\d.]+)(l[^"]*)" fill="none" stroke="[^"]*" stroke-width="([\d.]+)" stroke-linecap="round" stroke-linejoin="round"\/>/.exec(svg);
+  if (m === null) throw new Error(`${TICKED} no longer draws a ticked point the way the site reads it`);
+  const [cx, cy, r, x, y] = [m[1], m[2], m[3], m[4], m[5]].map(Number);
+  const round = (n) => Math.round(n * 100) / 100;
+  return { d: `M${round(x - cx)},${round(y - cy)}${m[6]}`, width: Number(m[7]), r };
 }
 
 /** The text outlines of the brand, which need `opentype.js` of the product's install: for the card, which a release writes. @param {string} root */
@@ -107,7 +129,15 @@ export function blinkingMarkSvg(brand, { id, begin }, size = 28) {
  */
 export function wordmarkSvg(brand, height = 20) {
   const { box, body } = brand.wordmark('currentColor');
-  const [x, y, w, h] = box;
+  const [x, , w, h] = box;
+  // The word is centred on the eye by its visual middle: the band of its lowercase letters, from the top of their arches to the
+  // baseline, and not the middle of the brand's box, which holds the room of the tall stem above and the overshoot below. The
+  // brand's box is `[.., -X - STEM - 2, .., X + STEM + 6]` (x-height X, weight STEM, the heaviest stroke of the body): from it,
+  // the band is `[-X - 0.44 STEM, 0]` (an arch is drawn 0.88 STEM wide), and the view box is the same height, moved to be centred on it.
+  const stem = Math.max(...[...body.matchAll(/stroke-width="([\d.]+)"/g)].map((m) => Number(m[1])));
+  const xHeight = -box[1] - stem - 2;
+  const middle = -(xHeight + 0.44 * stem) / 2;
+  const y = Math.round((middle - h / 2) * 100) / 100;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" width="${Math.round((w / h) * height)}" height="${height}" aria-hidden="true" focusable="false">${body}</svg>\n`;
 }
 
@@ -128,7 +158,7 @@ export function stepsSvg(brand) {
   for (let k = -4; k <= 3; k++) d += relative(smooth(line(STEP_BOX.y + (k + 0.5) * STEP_BOX.pitch, stones, 0, STEP_BOX.w, 60)));
   const signs = centres
     .map((x, i) => {
-      const tick = SIGNS[i] === 'ticked' ? '<path class="tick" d="M-6,0.5L-1.6,5L6.6,-4.4"/>' : '';
+      const tick = SIGNS[i] === 'ticked' ? `<path class="tick" d="${brand.tick.d}" stroke-width="${brand.tick.width}" transform="scale(${f(STEP_BOX.r / brand.tick.r)})"/>` : '';
       return `<g class="sign ${SIGNS[i]}" transform="translate(${f(x)},${STEP_BOX.y})"><circle r="${STEP_BOX.r}"/>${tick}</g>`;
     })
     .join('');
@@ -192,6 +222,9 @@ export async function faviconPng(svg, size = 64) {
 }
 
 /** The social card's frame, the eye's box and where the text starts. */
+/** How the card is rasterized: a palette PNG. The card has a handful of colours, and the palette changes no channel by more than 6 of 255. */
+export const CARD_PNG = Object.freeze({ palette: true, colours: 64, dither: 0, effort: 10 });
+
 const CARD = { w: 1200, h: 630, eye: { x: 880, y: 315, scale: 3.4 }, left: 84, measure: 600 };
 
 /**

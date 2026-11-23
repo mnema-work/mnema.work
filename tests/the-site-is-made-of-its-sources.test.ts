@@ -61,12 +61,14 @@ import {
   whereItLands,
   withoutWhatIsNotOnTheSite,
 } from '../build/the-pages.mjs';
-import { ACCENT as SITE_ACCENT, INK as SITE_INK, PAGE as SITE_PAGE } from '../build/the-palette.mjs';
+import { sitePalette, themeColours } from '../build/the-palette.mjs';
 import { theVerdictOfTheCommit, writeTheRecord } from '../build/the-record.mjs';
 import { GIT_WITHOUT_MAINTENANCE } from './support/git-without-maintenance.js';
 import { fromTheProduct, head, ROOT, SITE, tracked, trackedHere } from './support/reading-the-site.js';
 
-const THE_BLOCKS: readonly string[] = (await fromTheProduct('packages/code/dist/presentation/banner.js')).THE_BLOCKS;
+// The colours of the theme, from the brand's palette as the release holds it.
+const BRAND_PALETTE = (await fromTheProduct('.github/the-brand/palette.mjs')).PALETTE as Record<string, string>;
+const SITE_COLOURS = themeColours(sitePalette(BRAND_PALETTE));
 
 const FACTS = {
   repoUrl: 'https://github.com/o/r',
@@ -414,14 +416,24 @@ function wcag(one: string, other: string): number {
 describe('the theme the build writes reads at WCAG AA in both themes', () => {
   type Colours = Record<string, string>;
   const colours = async (): Promise<{ dark: Colours; light: Colours; css: string }> => {
-    const [ACCENT, PAGE, INK] = [SITE_ACCENT, SITE_PAGE, SITE_INK];
+    const { ACCENT, PAGE, INK } = SITE_COLOURS;
     const theme = themeOf({ ACCENT, PAGE, INK }) as { dark: Colours; light: Colours };
     return { ...theme, css: themeCss({ ACCENT, PAGE, INK }) as string };
   };
 
-  it('measures contrast as the standard does: the two values the standard gives for the accent', () => {
-    expect(wcag('#997dbf', '#ffffff').toFixed(2)).toBe('3.48');
-    expect(wcag('#0d1117', '#997dbf').toFixed(2)).toBe('5.44');
+  it('measures contrast as the standard does: the two values the standard gives for black on white and for #777 on white', () => {
+    expect(wcag('#000000', '#ffffff').toFixed(2)).toBe('21.00');
+    expect(wcag('#777777', '#ffffff').toFixed(2)).toBe('4.48');
+  });
+
+  it('paints the accent the brand does: sulphur on the dark page, charcoal on the light one, and a ground of the brand under each', () => {
+    const t = themeOf(SITE_COLOURS) as { dark: Colours; light: Colours };
+    expect(t.dark['accent']).toBe(BRAND_PALETTE.sulphur);
+    expect(t.light['accent']).toBe(BRAND_PALETTE.charcoal);
+    expect([t.dark['black'], t.dark['white']]).toEqual([BRAND_PALETTE.charcoal, BRAND_PALETTE.bone]);
+    expect([t.light['black'], t.light['white']]).toEqual([BRAND_PALETTE.paper, BRAND_PALETTE.charcoal]);
+    // The yellow is not an accent of text on a light ground: nothing of the light theme is the sulphur.
+    expect(Object.values(t.light), 'the light theme holds no sulphur').not.toContain(BRAND_PALETTE.sulphur);
   });
 
   it('makes the accent as text read at 4.5:1 on the ground and on every ground Starlight maps to a grey', async () => {
@@ -482,7 +494,10 @@ describe('the theme the build writes reads at WCAG AA in both themes', () => {
           ).toBeGreaterThanOrEqual(4.5);
         }
       }
-      expect(wcag(t[theme]['gray-3'] as string, t[theme]['black'] as string), `${theme}: the muted text on the page`).toBeGreaterThanOrEqual(4.5);
+      // The muted text is also the descriptor beside the mark, set on the header's ground, and the footer's line.
+      for (const ground of ['black', 'bg-nav', 'bg-sidebar'] as const) {
+        expect(wcag(t[theme]['gray-3'] as string, t[theme][ground] as string), `${theme}: the muted text on ${ground}`).toBeGreaterThanOrEqual(4.5);
+      }
     }
   });
 
@@ -506,42 +521,24 @@ describe('the theme the build writes reads at WCAG AA in both themes', () => {
     expect(bad.map((r) => r.selector.trim()), 'a rule that changes how the table sits in its column').toEqual([]);
   });
 
-  it('takes the smallest mix of the other ground that passes, and stops the build when none does', async () => {
-    const t = await colours();
-    const { ACCENT } = await fromTheProduct('.github/the-front-page/accent.mjs');
-    const { PAGE } = await fromTheProduct('.github/the-front-page/draw.mjs');
-    expect(t.dark['text-accent'], 'the dark accent already passes, so it is not touched').toBe(
-      ACCENT.dark,
-    );
-    expect(t.light['text-accent'], 'the light accent had to be darkened').not.toBe(ACCENT.light);
-    const grounds = ['black', 'bg-nav', 'bg-sidebar', 'bg-inline-code'].map(
-      (n) => t.light[n] as string,
-    );
+  it('takes the smallest mix of the other ground that passes, and stops the build when none does', () => {
+    // An ink that does not read on the ground is moved toward the other ground by whole percents, the fewest that pass.
+    const [ink, toward, ground] = [BRAND_PALETTE.stone as string, BRAND_PALETTE.charcoal as string, BRAND_PALETTE.paper as string];
+    expect(wcag(ink, ground), 'the stone on paper does not pass by itself').toBeLessThan(4.5);
+    const found = textAccent({ ink, toward, grounds: [ground], floor: 4.5 }) as string;
+    expect(wcag(found, ground)).toBeGreaterThanOrEqual(4.5);
     const mixed = (percent: number): string => {
-      const [a, b] = [ACCENT.light, PAGE.dark].map((h: string) =>
-        [1, 3, 5].map((i) => Number.parseInt(h.slice(i, i + 2), 16)),
-      ) as [number[], number[]];
-      return `#${a
-        .map((c, i) =>
-          Math.round(c + ((b[i] as number) - c) * (percent / 100))
-            .toString(16)
-            .padStart(2, '0'),
-        )
-        .join('')}`;
+      const [a, b] = [ink, toward].map((h) => [1, 3, 5].map((i) => Number.parseInt(h.slice(i, i + 2), 16))) as [number[], number[]];
+      return `#${a.map((c, i) => Math.round(c + ((b[i] as number) - c) * (percent / 100)).toString(16).padStart(2, '0')).join('')}`;
     };
-    const found = [...Array(101).keys()].find((p) => mixed(p) === t.light['text-accent']);
-    expect(
-      found,
-      'the light accent text is a whole percent of the way to the dark ground',
-    ).toBeDefined();
-    const below = mixed((found as number) - 1);
-    expect(
-      grounds.some((g) => wcag(below, g) < 4.5),
-      'one percent less would already have passed everywhere',
-    ).toBe(true);
-    expect(() =>
-      textAccent({ ink: '#ffffff', toward: '#ffffff', grounds: ['#ffffff'], floor: 4.5 }),
-    ).toThrow(/reads at 4.5:1/);
+    const percent = [...Array(101).keys()].find((p) => mixed(p) === found);
+    expect(percent, 'the colour is a whole percent of the way').toBeDefined();
+    expect(wcag(mixed((percent as number) - 1), ground), 'one percent less would not pass').toBeLessThan(4.5);
+    // The brand's own accents already pass, so they are not touched.
+    const t = themeOf(SITE_COLOURS) as { dark: Colours; light: Colours };
+    expect(t.dark['text-accent']).toBe(BRAND_PALETTE.sulphur);
+    expect(t.light['text-accent']).toBe(BRAND_PALETTE.charcoal);
+    expect(() => textAccent({ ink: '#ffffff', toward: '#ffffff', grounds: ['#ffffff'], floor: 4.5 })).toThrow(/reads at 4.5:1/);
   });
 
   it('writes what it measured: every value is in the rule of its theme, and the accent opens each rule', async () => {
@@ -782,72 +779,15 @@ describe('the record page is in the sidebar, inside the group of the README that
   });
 });
 
-describe('the social card is the banner and the pitch of the README on the dark page, and nothing else', () => {
-  const draw = async () => await fromTheProduct('.github/the-front-page/draw.mjs');
-  const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
-  const pitch = pitchOf(readme) as { title: string; body: string };
-  const card = async (): Promise<string> =>
-    (await draw()).socialCard({ blocks: THE_BLOCKS, pitch }) as string;
-
-  it('is 1200 by 630 and still: nothing animates, nothing is scripted', async () => {
-    const svg = await card();
-    expect(svg).toContain('width="1200" height="630" viewBox="0 0 1200 630"');
-    expect(svg).not.toMatch(/<(animate|set|script|style)\b|animation|@keyframes|class="a"/);
-  });
-
-  it('says the title and the body of the pitch as its only words, in <text> of the front page sans face', async () => {
-    const svg = await card();
-    const lines = [...svg.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)].map((m) => m[1] ?? '');
-    const unescaped = (s: string): string =>
-      s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    expect(unescaped(lines.join(' '))).toBe(`${pitch.title} ${pitch.body}`);
-    // The only words in the file: what a tag does not hold, outside the <text> lines, is nothing.
-    expect(
-      svg
-        .replace(/<text\b[^>]*>[^<]*<\/text>/g, '')
-        .replace(/<[^>]*>/g, '')
-        .trim(),
-    ).toBe('');
-    expect(svg).not.toMatch(/\saria-label=|<title>|<desc>/);
-    for (const m of svg.matchAll(/<text\b[^>]*font-family="([^"]*)"/g)) {
-      expect(m[1]).toContain('Segoe UI');
-    }
-    expect(lines.length).toBeGreaterThan(2);
-  });
-
-  it('paints the page and the accent of the dark theme, and greys: no other hue', async () => {
-    const svg = await card();
-    const { PAGE } = await draw();
-    const { ACCENT } = await fromTheProduct('.github/the-front-page/accent.mjs');
-    expect(svg).toContain(`<rect width="1200" height="630" fill="${PAGE.dark}"/>`);
-    const hues = new Set<string>();
-    for (const [hex] of svg.matchAll(/#[0-9a-fA-F]{6}\b/g)) {
-      const channels = [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
-      if (Math.max(...channels) - Math.min(...channels) > 24) hues.add(hex.toLowerCase());
-    }
-    expect([...hues]).toEqual([ACCENT.dark]);
-    expect(svg).not.toContain(ACCENT.light);
-  });
-
-  it('breaks its lines inside the margins, whatever the width of the letters', async () => {
-    const svg = await card();
-    for (const m of svg.matchAll(
-      /<text\b[^>]*x="(\d+)"[^>]*font-size="(\d+)"[^>]*>([^<]*)<\/text>/g,
-    )) {
-      const width = [...(m[3] ?? '')].length * Number(m[2]) * 0.6;
-      expect(Number(m[1]) + width, (m[3] ?? '').slice(0, 30)).toBeLessThanOrEqual(1200 - 80);
-    }
-  });
-});
 
 describe('what this repository tracks', () => {
   // The sources of the site: not its tests (which hold the very patterns they sweep for), its package lock or its licence.
   const files = trackedHere().filter(
     (f) => !f.startsWith('tests/') && !f.startsWith('.github/') && !/(^|\/)package-lock\.json$|^LICENSE$|^NOTICE$/.test(f),
   );
-  // The favicon is the one picture the build assembles: from the letter's cells and the paints of the product's own files, so
+  // The mark is the one picture the build assembles: from the eye and the palette of the product's own files, so
   // it may hold the markup of an SVG and nothing that is a colour or a shape typed here.
-  const THE_FAVICON = 'build/the-favicon.mjs';
+  const THE_MARK = 'build/the-mark.mjs';
   // The palette is the one file that owns the colours of the site; every other file reads them from it.
   const THE_PALETTE = 'build/the-palette.mjs';
   // The icons of the home page are drawn in one file, and it may hold the markup of an SVG and no colour: they are
@@ -868,13 +808,13 @@ describe('what this repository tracks', () => {
     const colourOnly = /#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\(|data:image/;
     for (const file of files) {
       const text = readFileSync(join(SITE, file), 'utf8');
-      const swept = file === THE_FAVICON || file === THE_ICONS ? colourOnly : file === THE_PALETTE || isAVendorLogo(file) ? /(?!)/ : colour;
+      const swept = file === THE_MARK || file === THE_ICONS ? colourOnly : file === THE_PALETTE || isAVendorLogo(file) ? /(?!)/ : colour;
       expect(
         swept.test(text),
         `${file} writes a colour or a picture`,
       ).toBe(false);
     }
-    expect(files, 'the favicon generator is among the files swept').toContain(THE_FAVICON);
+    expect(files, 'the mark generator is among the files swept').toContain(THE_MARK);
     expect(files, 'the icons are among the files swept').toContain(THE_ICONS);
     expect(files.filter(isAVendorLogo).length, 'the vendors’ logos are among the files tracked').toBeGreaterThan(0);
   });
@@ -916,4 +856,20 @@ describe('/record/ is written from a record that verifies, or not at all', () =>
     );
     expect(existsSync(join(out, 'refused', 'index.html'))).toBe(false);
   }, 60_000);
+});
+
+describe('the brand is read from its own module, and from no older export', () => {
+  // The pictures come from `.github/the-brand/`. The editor extension's mark, the front page's files (its accent, its social
+  // card) and the console's blocks (`THE_BLOCKS` of the banner) are the product's older drawing of the letter, and the site
+  // draws none of it. The brand's own `page.mjs` runs a font subsetter at its top, and the site never loads it.
+  const older = [/vscode\/build\/mark\.mjs/, /the-front-page\//, /presentation\/banner\.js/, /\bTHE_BLOCKS\b/, /the-brand\/page\.mjs/];
+  const read = (file: string): string => readFileSync(join(SITE, file), 'utf8');
+  const swept = trackedHere().filter((f) => /^(build|src)\/.*\.(mjs|ts|astro)$/.test(f) || f === 'astro.config.mjs');
+
+  it('imports neither the editor extension\'s mark nor the front page\'s accent, in any file of build/, src/ or the configuration', () => {
+    expect(swept, 'the build files are among those swept').toContain('build/the-mark.mjs');
+    for (const file of swept) {
+      for (const pattern of older) expect(pattern.test(read(file)), `${file} reads an older export of the product (${pattern})`).toBe(false);
+    }
+  });
 });

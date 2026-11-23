@@ -1,0 +1,17 @@
+---
+// The people whose pull request made mnema better: the README's own words and its list, each figure the product's (the
+// field opens round the person), each photo linking to the profile. A person is not a state: there is no yellow here.
+interface Props { title: string; thanks: string; people: { login: string; profile: string; image: string }[] }
+const { title, thanks, people } = Astro.props;
+---
+<section id="contributors" class="people">
+  <div class="wrap ctr">
+    <h2>{title}</h2>
+    <p class="thanks">{thanks}</p>
+    <ul class="cells">
+      {people.map((person) => (
+        <li><a href={person.profile}><img src={person.image} alt={`@${person.login}`} width="168" height="84" loading="lazy" /><span class="login">{person.login}</span></a></li>
+      ))}
+    </ul>
+  </div>
+</section>

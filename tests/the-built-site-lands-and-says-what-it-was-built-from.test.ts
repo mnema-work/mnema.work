@@ -50,7 +50,8 @@ import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { theHeadOfTheRecord } from '../build/the-build.mjs';
 import { copyOf, recordBackLink, themeOf } from '../build/the-pages.mjs';
-import { faviconSvg, markSvg, theSources } from '../build/the-favicon.mjs';
+import { CARD_PNG, cardSvg, markSvg, theBrand, theOutline } from '../build/the-mark.mjs';
+import { sitePalette, themeColours } from '../build/the-palette.mjs';
 import { SITE_URL } from '../build/the-site.mjs';
 import { runInAVm } from './support/a-page-in-a-vm.js';
 import {
@@ -73,6 +74,10 @@ import {
 } from './support/reading-the-site.js';
 
 const BUILT = existsSync(join(DIST, 'index.html'));
+
+/** The theme's colours, from the brand's palette as the release holds it, read here by this test and not by the build. */
+const brandColours = async (): Promise<Record<'ACCENT' | 'PAGE' | 'INK', { dark: string; light: string }>> =>
+  themeColours(sitePalette((await fromTheProduct('.github/the-brand/palette.mjs')).PALETTE));
 const MUST = process.env.THE_SITE_MUST_BE_BUILT === '1';
 const when = BUILT ? describe : describe.skip;
 
@@ -346,9 +351,7 @@ when('the built site', () => {
   );
 
   it('paints in the one accent and shows the bytes of the pictures: nothing drawn for the site', async () => {
-    const { ACCENT } = (await import(pathToFileURL(join(SITE, 'build/the-palette.mjs')).href)) as {
-      ACCENT: { dark: string; light: string };
-    };
+    const { ACCENT } = await brandColours();
     const astro = join(DIST, '_astro');
     const css = readdirSync(astro)
       .filter((f) => f.endsWith('.css'))
@@ -382,26 +385,27 @@ when('the built site', () => {
         `${file} is not the picture of docs/assets`,
       ).toBe(true);
     }
-    const sources = await theSources(ROOT);
-    const { ACCENT: DRAWN } = sources as { ACCENT: { dark: string; light: string } };
+    // Read off the product's own file, by this test's own decoding: the favicon is the one the record page wears.
+    const { FAVICON } = (await fromTheProduct('packages/code/dist/site/the-mark.js')) as { FAVICON: string };
+    const wears = Buffer.from(FAVICON.split(',')[1] ?? '', 'base64').toString('utf8');
     const svg = readText(join(DIST, 'favicon.svg'));
-    expect(svg, 'the favicon is not what the build draws from the product').toBe(faviconSvg(sources));
-    // Read off the product's own files, not off the generator: the letter's cells, and the accent of each theme.
-    const cells = sources.letterCells(sources.blocks).length;
-    expect(
-      [...svg.matchAll(/z/g)].length / 2,
-      'the favicon holds the cells of the letter, twice (the letter and its shadow)',
-    ).toBe(cells);
-    expect(svg.match(/\.letter\{fill:(#[0-9a-f]{6})/)?.[1], 'the light accent').toBe(DRAWN.light);
-    expect(svg.match(/@media \(prefers-color-scheme:dark\)\{\.shadow\{fill:#[0-9a-f]{6}\}\.letter\{fill:(#[0-9a-f]{6})/)?.[1], 'the dark accent').toBe(DRAWN.dark);
-    expect(svg, 'a bare letter: no tile around it').not.toContain('<rect');
+    expect(wears, 'the product page wears an SVG').toContain('<svg');
+    expect(svg, "the favicon is not the one the product's record page wears, byte for byte").toBe(wears);
+    expect(svg, 'the favicon does not change with the scheme of the tab').not.toContain('prefers-color-scheme');
     const png = readFileSync(join(DIST, 'favicon.png'));
     expect(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true);
     expect(png.readUInt32BE(16), 'width').toBe(64);
+    // The touch icon and the logo of the structured data are the same drawing, rasterized larger.
+    for (const [file, size] of [['apple-touch-icon.png', 180], ['logo.png', 512]] as const) {
+      const icon = readFileSync(join(DIST, file));
+      expect(icon.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])), `${file} is a PNG`).toBe(true);
+      expect([icon.readUInt32BE(16), icon.readUInt32BE(20)], `${file} size`).toEqual([size, size]);
+    }
   });
 
-  it('links the adaptive SVG as the icon of every page, ahead of the PNG fallback, and that SVG is the generated file', async () => {
-    const generated = faviconSvg(await theSources(ROOT));
+  it('links the SVG as the icon of every page, ahead of the PNG fallback, and that SVG is the product\'s favicon', async () => {
+    const { FAVICON } = (await fromTheProduct('packages/code/dist/site/the-mark.js')) as { FAVICON: string };
+    const generated = Buffer.from(FAVICON.split(',')[1] ?? '', 'base64').toString('utf8');
     // /record/ is the page the binary writes, and it declares no icon.
     const own = pages.filter((p) => p !== 'record/index.html');
     expect(own.length, 'the pages swept').toBeGreaterThan(10);
@@ -412,14 +416,11 @@ when('the built site', () => {
       expect(svg, `${page}: the SVG is not linked as an icon`).toBeGreaterThanOrEqual(0);
       expect(png, `${page}: the PNG fallback is not linked`).toBeGreaterThan(svg);
     }
-    expect(readText(join(DIST, 'favicon.svg')), 'the linked SVG is the generated one').toBe(generated);
+    expect(readText(join(DIST, 'favicon.svg')), 'the linked SVG is the product\'s').toBe(generated);
   });
 
   it('carries the calculated theme in a rule of no layer, so Starlight does not take it back', async () => {
-    const { ACCENT, PAGE, INK } = (await import(pathToFileURL(join(SITE, 'build/the-palette.mjs')).href)) as Record<
-      'ACCENT' | 'PAGE' | 'INK',
-      { dark: string; light: string }
-    >;
+    const { ACCENT, PAGE, INK } = await brandColours();
     const theme = themeOf({ ACCENT, PAGE, INK }) as Record<'dark' | 'light', Record<string, string>>;
     const astro = join(DIST, '_astro');
     const css = readdirSync(astro)
@@ -455,36 +456,42 @@ when('the built site', () => {
   });
 
   it('shows on the page of what it proves the recording of a changed word, from the GIF the site carries', () => {
+    // The recording is the one the page's own source shows: its name is read there, not kept here.
+    const source = readText(join(ROOT, 'docs/what-it-proves.md'));
+    const named = /\.\.\/recordings\/([\w.-]+\.gif)/.exec(source)?.[1] ?? '';
+    expect(named, 'the source of the page shows a recording').not.toBe('');
     const page = html('docs/what-it-proves/index.html');
-    const src = /<img\b[^>]*src="([^"]*recordings\/a-tamper-caught\.gif)"/.exec(page)?.[1] ?? '';
+    const src = new RegExp(`<img\\b[^>]*src="([^"]*recordings/${named.replace(/\./g, '\\.')})"`).exec(page)?.[1] ?? '';
     expect(src, 'the page shows the recording').not.toBe('');
     expect(src, "a path of the site, not GitHub's page for the file").not.toMatch(/^https?:/);
     expect(
-      readFileSync(join(DIST, 'recordings/a-tamper-caught.gif')).equals(
-        readFileSync(join(ROOT, 'recordings/a-tamper-caught.gif')),
-      ),
+      readFileSync(join(DIST, 'recordings', named)).equals(readFileSync(join(ROOT, 'recordings', named))),
       "the site's GIF is the repository's",
     ).toBe(true);
   });
 
-  it('puts in the head of every page of docs/ the mark, linked to the home page, and the name once', async () => {
-    const sources = await theSources(ROOT);
+  it('puts in the head of every page of docs/ the eye, still, linked to the home page, with the word and the descriptor, and the name once', async () => {
+    const brand = await theBrand(ROOT);
+    const pitch = textOf(/<h3>([\s\S]*?)<\/h3>/.exec(readText(join(ROOT, 'README.md')))?.[1] ?? '');
     for (const page of ['404.html', 'docs/install/index.html']) {
-      const title = /<a href="([^"]*)" class="site-title[^>]*>([\s\S]*?)<\/a>/.exec(html(page));
+      const title = /<a href="([^"]*)" class="site-title[^>]*aria-label="([^"]*)"[^>]*>([\s\S]*?)<\/a>/.exec(html(page));
       expect(title?.[1], `${page}: the head links back to the home page`).toBe('/');
-      const images = [...(title?.[2] ?? '').matchAll(/<img\b[^>]*>/g)].map((m) => m[0]);
-      expect(images, `${page}: one mark per theme`).toHaveLength(2);
-      for (const [i, theme] of (['dark', 'light'] as const).entries()) {
-        const img = images[i] ?? '';
-        const alt = /\salt(?:="([^"]*)")?(?=[\s>])/.exec(img);
-        expect(alt?.[1] ?? (alt ? '' : '?'), `${page}: the name is not said twice`).toBe('');
-        const src = /\ssrc="([^"]*)"/.exec(img)?.[1] ?? '';
-        expect(src, `${page}: the ${theme} mark`).toContain(`mark-${theme}.`);
-        expect(readText(join(DIST, src.slice(BASE.length))), `${page}: the ${theme} mark is the favicon's letter`).toBe(
-          markSvg(sources, theme, 28),
-        );
+      expect(title?.[2], `${page}: the name, once`).toBe('mnema');
+      const eyes = [...(title?.[3] ?? '').matchAll(/<span class="mark only-(dark|light)">(<svg[\s\S]*?<\/svg>)\s*<\/span>/g)];
+      expect(eyes.map((m) => m[1]), `${page}: one eye per theme`).toEqual(['dark', 'light']);
+      for (const m of eyes) {
+        const theme = m[1] as 'dark' | 'light';
+        const drawn = m[2] ?? '';
+        expect(drawn.trim(), `${page}: the ${theme} eye is the brand's`).toBe(markSvg(brand, theme, 28, `mark-eye-${theme}`).trim());
+        expect(drawn, `${page}: the ${theme} eye is still`).not.toMatch(/<animate|<set\b|animation/);
+        expect(drawn, `${page}: the ${theme} eye has the iris`).toContain(`fill="${brand.PALETTE.sulphur}"`);
+        expect(drawn, `${page}: the ${theme} eye has no ring on the iris`).not.toMatch(/<ellipse[^>]*stroke/);
       }
-      expect(textOf(title?.[2] ?? ''), `${page}: the name`).toBe('mnema');
+      expect(title?.[3], `${page}: the word of the brand is drawn`).toContain('<span class="word">');
+      expect(textOf(title?.[3] ?? ''), `${page}: no text in the link besides its label`).toBe('');
+      const descriptor = /<span class="descriptor">([^<]*)<\/span>/.exec(html(page))?.[1] ?? '';
+      expect(descriptor, `${page}: the descriptor is said by the README's pitch`).not.toBe('');
+      expect(pitch, `${page}: the descriptor`).toContain(descriptor);
     }
   });
 
@@ -519,41 +526,33 @@ when('the built site', () => {
     expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1200, 630]);
   });
 
-  it('draws the card as the SVG of the front page rasterized with its letters, and not as the same SVG without its words or with them backwards', async () => {
+  it('draws the card from the brand: the field, the eye at rest, the word and the pitch as outlines, with no text, no motion and only the brand\'s colours', async () => {
     const require = createRequire(join(SITE, 'package.json'));
-    const sharp = require('sharp') as (input: Buffer) => {
-      png: () => { toBuffer: () => Promise<Buffer> };
-    };
-    const { socialCard } = await import(
-      pathToFileURL(join(ROOT, '.github/the-front-page/draw.mjs')).href
-    );
-    const { THE_BLOCKS } = await fromTheProduct('packages/code/dist/presentation/banner.js');
+    const sharp = require('sharp') as (input: Buffer) => any;
+    const brand = await theBrand(ROOT);
+    const outline = await theOutline(ROOT);
     const { pitchOf } = await import('../build/the-pages.mjs');
-    const svg = socialCard({
-      blocks: THE_BLOCKS,
-      pitch: pitchOf(readText(join(ROOT, 'README.md'))),
-    }) as string;
+    const pitch = pitchOf(readText(join(ROOT, 'README.md')));
+    const svg = cardSvg(brand, outline, pitch) as string;
+    expect(svg).toContain('width="1200" height="630" viewBox="0 0 1200 630"');
+    expect(svg, 'the card holds no <text>: its words are outlines').not.toMatch(/<text\b|<tspan|font-family/);
+    expect(svg, 'the card is still').not.toMatch(/<(animate|set|script|style)\b|animation|@keyframes/);
+    // The eye is the brand's own, at rest, as the module draws it.
+    expect(svg).toContain(brand.eye({ id: 'card-eye', look: 0, ink: brand.PALETTE.bone, iris: brand.PALETTE.sulphur }));
+    const ofTheBrand = new Map(Object.values(brand.PALETTE).map((h) => [String(h).toLowerCase(), true]));
+    for (const [hex] of svg.matchAll(/#[0-9a-fA-F]{6}\b/g)) expect(ofTheBrand.has(hex.toLowerCase()), `${hex} is a colour of the brand`).toBe(true);
     const built = readFileSync(join(DIST, 'og.png'));
-    expect(
-      built.equals(await sharp(Buffer.from(svg)).png().toBuffer()),
-      'og.png is not the card of the front page',
-    ).toBe(true);
-    // Without its <text> the card is another picture; and with each line written backwards it is another one still, but
-    // only if the machine has a face to draw letters with: a machine with none draws the same boxes for any string.
-    const bare = svg.replace(/<text\b[^>]*>[^<]*<\/text>/g, '');
-    const backwards = svg.replace(
-      /(<text\b[^>]*>)([^<]*)(<\/text>)/g,
-      (_all, open: string, words: string, close: string) =>
-        `${open}${[...words].reverse().join('')}${close}`,
-    );
+    expect(built.equals(await sharp(Buffer.from(svg)).png(CARD_PNG).toBuffer()), 'og.png is not this card, rasterized').toBe(true);
+    expect(built.length, 'og.png is a palette PNG, light').toBeLessThan(120_000);
+    // The palette moves no channel by more than 6 of 255 from the full-colour card.
+    const [a, b] = await Promise.all([sharp(Buffer.from(svg)).ensureAlpha().raw().toBuffer(), sharp(built).ensureAlpha().raw().toBuffer()]);
+    let worst = 0;
+    for (let i = 0; i < a.length; i += 1) worst = Math.max(worst, Math.abs((a[i] ?? 0) - (b[i] ?? 0)));
+    expect(worst, 'the palette changes no colour of the card visibly').toBeLessThanOrEqual(8);
+    // Without the pitch's outlines it is another picture: the words are drawn.
+    const bare = svg.replace(/<path fill="[^"]*" transform="scale\([^)]*\)" d="[^"]*"\/>/g, '');
     expect(bare).not.toBe(svg);
-    expect(backwards).not.toBe(svg);
-    for (const other of [bare, backwards]) {
-      expect(
-        built.equals(await sharp(Buffer.from(other)).png().toBuffer()),
-        'og.png has no letters: the machine that built it drew the card without a face for its text',
-      ).toBe(false);
-    }
+    expect(built.equals(await sharp(Buffer.from(bare)).png(CARD_PNG).toBuffer()), 'og.png has no words').toBe(false);
   }, 60_000);
 
   it('serves a 404 that leads into the site: three links at least, to pages the site holds', () => {

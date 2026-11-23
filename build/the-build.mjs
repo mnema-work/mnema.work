@@ -23,10 +23,11 @@ import {
   verifyCommandOf,
   withoutWhatIsNotOnTheSite,
 } from './the-pages.mjs';
-import { emptyMarkSvg, faviconPng, faviconSvg, markSvg, theSources } from './the-favicon.mjs';
-import { hostsOf, installOf, MEASURED, measuredOf, verdictLinesOf } from './the-home.mjs';
+import { blinkingMarkSvg, CARD_PNG, cardSvg, faviconPng, faviconSvg, fieldSource, FIELD_COPY, heroSvg, markSvg, ringOf, stepsSvg, theBrand, theOutline, wordmarkSvg } from './the-mark.mjs';
+import { contributorsOf, hostsOf, installOf, verdictLinesOf } from './the-home.mjs';
+import { BAR_PHASE_S, frameOf } from './the-hero-field.mjs';
 import { HOSTS_DIR, ownersOf, withLogos } from './the-hosts.mjs';
-import { ACCENT, INK, PAGE, paletteCss } from './the-palette.mjs';
+import { paletteCss, sitePalette, themeColours } from './the-palette.mjs';
 import { releaseDateOf, tagOf } from './the-product.mjs';
 import { theFailureOfTheCommit, theRefusalOfTheBinary, theVerdictOfTheCommit } from './the-record.mjs';
 import { CONTACT, SITE, SITE_URL } from './the-site.mjs';
@@ -91,6 +92,9 @@ export async function theFacts(root, { check = false } = {}) {
  * read and fails as in a release build, and the verdict of the record, which needs the product built, is left out.
  */
 export async function prepare({ root, site = SITE, check = false }) {
+  // Before anything is written: a checkout from before the brand is refused, and the files already here stay as they were.
+  const brand = await theBrand(root);
+  const palette = sitePalette(brand.PALETTE);
   const facts = await theFacts(root, { check });
   const readme = readFileSync(join(root, 'README.md'), 'utf8');
   const { files, names: docs, read } = docsOf(root);
@@ -124,6 +128,8 @@ export async function prepare({ root, site = SITE, check = false }) {
     docsIndexOf({ sidebar, title: copy('docs-title'), description: copy('docs-description'), copy, steps: stepsOf(read('first-record')) }),
   );
   // The two links the header carries beside GitHub: read by `src/components/SocialIcons.astro`.
+  // The descriptor beside the mark in the docs' header, read by `src/components/SiteTitle.astro`.
+  writeFileSync(into('src/generated/descriptor.json'), `${JSON.stringify({ text: copy('header-descriptor') })}\n`);
   writeFileSync(into('src/generated/header.json'), `${JSON.stringify(headerLinksOf({ sidebar, docs: copy('header-docs') }))}\n`);
 
   // The page that is not a page of `docs/`: a tracked template, filled the same way. The home page is not written
@@ -148,15 +154,20 @@ export async function prepare({ root, site = SITE, check = false }) {
   const refusal = check ? null : await theRefusalOfTheBinary({ root });
   const hosts = hostsOf(readme);
   const shown = withLogos(hosts.hosts, { dir: join(site, HOSTS_DIR), root });
+  const ring = ringOf(brand, shown.length);
+  const contributors = contributorsOf(readme, root);
   writeFileSync(
     into('src/generated/home.json'),
     `${JSON.stringify(
       {
-        measured: measuredOf(root),
-        measuredUrl: `${facts.repoUrl}/tree/${facts.tag}/${MEASURED}`,
-        hosts: shown,
+        hosts: shown.map((host, i) => ({ ...host, place: ring.places[i] })),
         owners: ownersOf(shown),
-        rungs: hosts.rungs,
+        ring: { width: ring.width, height: ring.height },
+        contributors: {
+          title: contributors.title,
+          thanks: contributors.thanks,
+          people: contributors.people.map(({ login, profile, image }) => ({ login, profile, image: `/assets/${image.split('/').pop()}` })),
+        },
         install: installOf({ readme, hostsPage }),
         verdict: { command: verifyCommandOf(readme), lines: verdict === null ? [] : verdictLinesOf(verdict) },
         failure: failure ?? { lines: [], before: '', after: '' },
@@ -178,6 +189,12 @@ export async function prepare({ root, site = SITE, check = false }) {
       2,
     )}\n`,
   );
+  // The pictures of the page, from the brand: the ring's lines and the four steps on a line of the field, the hero's field at
+  // rest, and the brand's own `field.mjs`, which the page's script draws the hero's lines with while the pointer moves.
+  writeFileSync(into('src/generated/ring.svg'), ring.svg);
+  writeFileSync(into('src/generated/steps.svg'), stepsSvg(brand));
+  writeFileSync(into('src/generated/hero.svg'), heroSvg(brand, frameOf));
+  writeFileSync(into(FIELD_COPY), await fieldSource(root));
 
   // The vendors' logos, as they are tracked here, untouched: the page shows only those `hosts/SOURCES.md` lists.
   for (const file of existsSync(join(site, HOSTS_DIR)) ? readdirSync(join(site, HOSTS_DIR)).filter((f) => f !== 'SOURCES.md') : []) {
@@ -188,36 +205,50 @@ export async function prepare({ root, site = SITE, check = false }) {
     cpSync(join(root, 'docs/assets', file), into(`public/assets/${file}`));
   }
 
-  writeFileSync(into('src/generated/theme.css'), themeCss({ ACCENT, PAGE, INK }));
-  writeFileSync(into('src/generated/palette.css'), paletteCss());
-  // The favicon and the mark are drawn from the wordmark in the product's BUILT code. A check does not build the product,
-  // so its mark is an empty drawing: the site it makes is never published.
-  const sources = check ? null : await theSources(root);
+  writeFileSync(into('src/generated/theme.css'), themeCss(themeColours(palette)));
+  writeFileSync(into('src/generated/palette.css'), paletteCss(palette));
+  // The favicon is the product's own, the one its record page wears, and it needs the product built: a check does not
+  // build it, and the site it makes is never published.
   if (!check) {
-    writeFileSync(into('public/favicon.svg'), faviconSvg(sources));
-    writeFileSync(into('public/favicon.png'), await faviconPng(sources));
+    const favicon = await faviconSvg(root);
+    writeFileSync(into('public/favicon.svg'), favicon);
+    writeFileSync(into('public/favicon.png'), await faviconPng(favicon));
+    // The touch icon of a phone's home screen, and the logo of the structured data (a raster, which every search engine takes).
+    writeFileSync(into('public/apple-touch-icon.png'), await faviconPng(favicon, 180));
+    writeFileSync(into('public/logo.png'), await faviconPng(favicon, 512));
   }
   // The domain the pages are served from, read by GitHub Pages from the published output.
   writeFileSync(into('public/CNAME'), `${new URL(SITE_URL).host}\n`);
-  // The mark beside the name, in the docs' header and on the home page: the same letter as the favicon, in the paints of a theme.
+  // The mark beside the name, in the docs' header: the brand's eye, still, in each theme (on the light page in its charcoal
+  // seal: the eye is never inverted). A check draws it too: the eye needs no installed package.
   for (const theme of ['dark', 'light']) {
-    writeFileSync(into(`src/assets/mark-${theme}.svg`), check ? emptyMarkSvg(28) : markSvg(sources, theme, 28));
+    writeFileSync(into(`src/assets/mark-${theme}.svg`), markSvg(brand, theme, 28, `mark-eye-${theme}`));
   }
+  writeFileSync(into('src/generated/eye-foot.svg'), markSvg(brand, 'dark', 28, 'mark-eye-foot'));
+  // The home page's: the eye that blinks (the bar's, the ring's and the quick start's, each at its own point of the cycle),
+  // the word, and the sizes they are drawn at.
+  writeFileSync(into('src/generated/eye-bar.svg'), blinkingMarkSvg(brand, { id: 'eye-bar', begin: -BAR_PHASE_S }, 30));
+  writeFileSync(into('src/generated/eye-ring.svg'), blinkingMarkSvg(brand, { id: 'eye-ring', begin: -3.4 }, 128));
+  writeFileSync(into('src/generated/eye-start.svg'), blinkingMarkSvg(brand, { id: 'eye-start', begin: -0.8 }, 72));
+  writeFileSync(into('src/generated/word.svg'), wordmarkSvg(brand, 15));
+  writeFileSync(into('src/generated/word-docs.svg'), wordmarkSvg(brand, 16));
   writeFileSync(into('src/generated/the-build.json'), `${JSON.stringify({ version: facts.version, tag: facts.tag, sha: facts.sha, repoUrl: facts.repoUrl })}\n`);
   return facts;
 }
 
 /**
- * The social card, `og.png` at the root of the built site: the front page's `socialCard` of the banner's rows and the
- * README's pitch, rasterized by `sharp` (which `astro` installs; `package.json` names it). Run after `astro build`.
+ * The social card, `og.png` at the root of the built site: the brand's field, the eye at rest, the word and the README's
+ * pitch as outlines, on charcoal, 1200 by 630 and still, rasterized by `sharp` (which `astro` installs; `package.json`
+ * names it). Run after `astro build`. It needs the brand's `outline.mjs`, which reads fonts with `opentype.js` of the
+ * product's install: only a release has it, so a check does not write the card.
  * @returns {Promise<Buffer>} the PNG written
  */
 export async function writeTheCard({ root, out = join(SITE, 'dist') }) {
-  const { socialCard } = await import(pathToFileURL(join(root, '.github/the-front-page/draw.mjs')).href);
-  const { THE_BLOCKS } = await import(pathToFileURL(join(root, 'packages/code/dist/presentation/banner.js')).href);
+  const brand = await theBrand(root);
+  const outline = await theOutline(root);
   const { default: sharp } = await import('sharp');
   const pitch = pitchOf(withoutWhatIsNotOnTheSite(readFileSync(join(root, 'README.md'), 'utf8'), 'README.md'));
-  const png = await sharp(Buffer.from(socialCard({ blocks: THE_BLOCKS, pitch }))).png().toBuffer();
+  const png = await sharp(Buffer.from(cardSvg(brand, outline, pitch))).png(CARD_PNG).toBuffer();
   writeFileSync(join(out, 'og.png'), png);
   return png;
 }
@@ -248,7 +279,7 @@ export async function writeTheRest({ root, out = join(SITE, 'dist') }) {
 
 
 /** The two typefaces the site serves, and the packages they come from: the Open Font Licence asks that its text travel with them. */
-export const FONT_PACKAGES = Object.freeze(['@fontsource/jetbrains-mono', '@fontsource/instrument-sans']);
+export const FONT_PACKAGES = Object.freeze(['@fontsource-variable/archivo', '@fontsource/ibm-plex-mono']);
 
 /** `fonts-licence.txt` at the root of the built site: the licence of each typeface, as its package carries it. */
 export function writeTheFontLicences({ out = join(SITE, 'dist') } = {}) {

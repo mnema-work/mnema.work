@@ -7,8 +7,8 @@
  *  - no step reads a `secrets.` context, and no job is handed a token of its own;
  *  - only the job that deploys may hold a `write` permission, and every checkout keeps no credentials;
  *  - the job that deploys has `pages: write` and `id-token: write` and no other permission, no `checkout` and no `run`;
- *  - no step passes `--check` to the build and no `env` sets `SITE_CHECK`: a check build exits 0 with no /record/ and an
- *    empty mark, so it must never be what is published;
+ *  - no step passes `--check` to the build and no `env` sets `SITE_CHECK`: a check build exits 0 with no /record/, no favicon and no
+ *    card (it did draw an empty mark before it drew the brand's eye), so it must never be what is published;
  *  - the job that decides what is built asks the product with `git ls-remote` and a public address, with no token.
  *
  * NOT HELD: that the allowlist in the organization's settings says the same (that is a setting, not a file).

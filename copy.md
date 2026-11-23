@@ -49,3 +49,6 @@ How each claim is held, and the rest.
 
 ## header-docs
 Docs
+
+## header-descriptor
+the decision record for AI coding agents

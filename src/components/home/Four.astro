@@ -1,0 +1,78 @@
+---
+// The four sections: what the page says of the record, each beside the plate that shows it. The facts the plates show (the
+// two outputs of `mnema verify`, the host logos) are read by the build and handed in.
+import Logo from './Logo.astro';
+import { NOT, TITLE, WHY } from './words';
+interface Host { name: string; logo?: { src: string; alt: string; width: number; height: number } }
+interface Props { command: string; verdict: string[]; failure: { lines: string[] }; hosts: Host[] }
+const { command, verdict, failure, hosts } = Astro.props;
+const sessions = ['Claude Code', 'Codex', 'VS Code'].map((name) => hosts.find((h) => h.name === name) ?? { name });
+---
+<section id="s01" class="two">
+  <div class="wrap g">
+    <div>
+      <h2><span class="mono">01</span>Record the why</h2>
+      <p class="lead">When a choice is settled, your agent records it with the reason and what it turned down. It counts once it is accepted.</p>
+    </div>
+    <div class="plate" role="group" aria-label={`A decision as a form: the title "${TITLE}", why "${WHY}", what was turned down "${NOT}", marked proposed and then accepted by a person, with a note.`}>
+      <div class="ph" aria-hidden="true"><span class="st">proposed</span><span>→</span><span class="st on">accepted</span></div>
+      <dl>
+        <dt>Title</dt><dd>{TITLE}</dd>
+        <dt>Why</dt><dd>{WHY}</dd>
+        <dt>Turned down</dt><dd>{NOT}</dd>
+      </dl>
+      <div class="pf">Accepted by a person, with a note.</div>
+    </div>
+  </div>
+</section>
+<section id="s02" class="two">
+  <div class="wrap g">
+    <div>
+      <h2><span class="mono">02</span>Every session starts with it</h2>
+      <p class="lead">Each new session opens with the decisions in force. The next agent starts from what was settled, not from zero.</p>
+    </div>
+    <div class="sessions" role="group" aria-label={`Three new sessions, in Claude Code, Codex and VS Code, each opening with "In force: ${TITLE}".`}>
+      {sessions.map((host) => (
+        <div class="sess" aria-hidden="true">
+          <div class="sh">{host.logo && <Logo logo={host.logo} />}{host.name} · new session</div>
+          <div class="sb"><span class="dot"></span>In force: <b>{TITLE}</b></div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+<section id="s03" class="two">
+  <div class="wrap g">
+    <div>
+      <h2><span class="mono">03</span>Rules meet the edit</h2>
+      <p class="lead">Point a decision at a path. An agent’s edit there waits for a person, or is refused with the rule named. The shell is not stopped.</p>
+    </div>
+    <div class="tree" role="group" aria-label={`A folder tree where src/billing is governed by a rule. An edit to src/billing/invoice.ts is refused, naming the rule "${TITLE}". Editing tools are held to it; a shell command is not.`}>
+      <div aria-hidden="true">
+        <div>src/</div>
+        <div class="gov">  billing/ <span>governed by a rule</span></div>
+        <div class="refused">    invoice.ts  <b>✗ write refused</b></div>
+        <div>    tax.ts</div>
+        <div>  web/</div>
+        <p>{TITLE} · editing tools are held to it; a shell command is not.</p>
+      </div>
+    </div>
+  </div>
+</section>
+<section id="s04" class="two">
+  <div class="wrap g">
+    <div>
+      <h2><span class="mono">04</span>Anyone can check it</h2>
+      <p class="lead">Every event is signed and chained. mnema verify checks the record with no key and no network, and fails when one word was changed.</p>
+    </div>
+    <div>
+      <pre class="vr" tabindex="0"><span class="p">$</span> {command}
+<span class="verified">{verdict[0]}</span>
+{verdict[1]}</pre>
+      <pre class="vr bad" tabindex="0"><span class="p">$</span> {command}
+<span class="failed">{failure.lines[0]}</span>
+{failure.lines[1]}</pre>
+      <p class="small">An illustration of two real outputs, captured from the verifier: the second after the first character of a title was changed. <a href="/record/">Run it on this site's own record</a>, in your browser.</p>
+    </div>
+  </div>
+</section>

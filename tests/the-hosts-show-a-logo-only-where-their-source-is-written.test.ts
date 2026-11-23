@@ -19,7 +19,7 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { faultsAgainstProduct, faultsOf, HOSTS_DIR, LOGOS, PRODUCT_HOSTS_DIR, productHasHosts, rowsOf, sha256, SOURCES, withLogos } from '../build/the-hosts.mjs';
 import { hostsOf } from '../build/the-home.mjs';
-import { DIST, ROOT, readText, SITE } from './support/reading-the-site.js';
+import { DIST, ROOT, readText, SITE, textOf } from './support/reading-the-site.js';
 
 const sources = (): string => readText(join(SITE, SOURCES));
 const BUILT = existsSync(join(DIST, 'index.html'));
@@ -218,8 +218,8 @@ function cssRulesOf(css: string): { selectors: string[]; body: string }[] {
   return out;
 }
 
-/** The classes of the hosts strip: a selector made only of these and ending in `img` reaches a picture inside it. */
-const STRIP_WORDS = new Set(['home', 'hosts-strip', 'hosts', 'pair', 'mark', 'wrap', 'ctr', 'mono', 'ul', 'li', 'a', 'section', 'div', 'main', 'body', 'html']);
+/** The classes of the ring of hosts and of the plates that show a host's logo: a selector made only of these and ending in `img` reaches a picture inside them. */
+const STRIP_WORDS = new Set(['home', 'hosts-section', 'orbit', 'hosts', 'host', 'logo', 'sh', 'sess', 'wrap', 'ctr', 'mono', 'ul', 'li', 'a', 'section', 'div', 'main', 'body', 'html']);
 const SCOPE = /:where\(\.(astro-[\w-]+)\)|\.(astro-[\w-]+)/g;
 /**
  * Whether a selector reaches a picture of the hosts strip. A rule the framework scoped to a component's own class
@@ -243,7 +243,7 @@ const styleBlocksOf = (astro: string): string[] => [...astro.matchAll(/<style\b[
 function stripComponents(): string[] {
   const walk = (dir: string): string[] =>
     readdirSync(join(SITE, dir), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : e.name.endsWith('.astro') ? [`${dir}/${e.name}`] : []));
-  return walk('src/components').filter((f) => /class="[^"]*\bhosts-strip\b/.test(readText(join(SITE, f))));
+  return walk('src/components').filter((f) => /<section\b[^>]*class="[^"]*\bhosts-section\b/.test(readText(join(SITE, f))));
 }
 
 describe('the Blossom of OpenAI, which the product shows at 40', () => {
@@ -254,9 +254,9 @@ describe('the Blossom of OpenAI, which the product shows at 40', () => {
 
   it("is not squeezed to 20 by the page's style: no rule of the styles that reaches a picture of the hosts strip sets a fixed height or width", () => {
     const home = readText(join(SITE, 'src/styles/home.css'));
-    expect(/^\.home \.mark img \{([^}]*)\}/m.exec(home)?.[1] ?? '', 'the rule for the logos is there').toContain('display');
+    expect(/^\.home \.sh img,\n\.home \.hosts img \{([^}]*)\}/m.exec(home)?.[1] ?? '', 'the rule for the logos is there').toContain('display');
     const components = stripComponents();
-    expect(components, 'the component that renders the strip is found').toContain('src/components/home/HostsStrip.astro');
+    expect(components, 'the component that renders the strip is found').toContain('src/components/home/Hosts.astro');
     const rules = [
       ...readdirSync(join(SITE, 'src/styles'))
         .filter((f) => f.endsWith('.css'))
@@ -268,18 +268,18 @@ describe('the Blossom of OpenAI, which the product shows at 40', () => {
   });
 
   it('sees a rule that pins the size of a picture of the strip, however the selector reaches it', () => {
-    for (const css of ['.home .hosts img { height: 20px }', '.home .hosts-strip img{width:20px;display:block}', '.home .mark img { max-height: 20px }', '.home .mark img{min-width:20px}', '.home .mark img { block-size: 20px }', '.home .mark img { max-inline-size: 20px; }', '.home .mark img { min-block-size: 2rem }', '.home .pair ul img { height: 2rem }', '.home img { height: 20px }', 'img { height: 20px }']) {
+    for (const css of ['.home .hosts img { height: 20px }', '.home .hosts-section img{width:20px;display:block}', '.home .logo img { max-height: 20px }', '.home .logo img{min-width:20px}', '.home .host img { block-size: 20px }', '.home .sh img { max-inline-size: 20px; }', '.home .sess img { min-block-size: 2rem }', '.home .orbit ul img { height: 2rem }', '.home img { height: 20px }', 'img { height: 20px }']) {
       const [r] = cssRulesOf(css);
       expect(r?.selectors.some((s) => reachesAnImageOfTheStrip(s)) && fixesASize(r?.body ?? ''), css).toBe(true);
     }
-    for (const css of ['.site-title img { height: 20px }', '.home .mark img { display: block; border-radius: 4px; }', '.home .hosts { gap: 10px }', '.home .mark img { line-height: 20px }']) {
+    for (const css of ['.site-title img { height: 20px }', '.home .logo img { display: block; border-radius: 4px; }', '.home .hosts { gap: 10px }', '.home .logo img { line-height: 20px }', '.home .cells img { width: 100% }']) {
       const [r] = cssRulesOf(css);
       expect(r?.selectors.some((s) => reachesAnImageOfTheStrip(s)) && fixesASize(r?.body ?? ''), css).toBe(false);
     }
   });
 
   it('reads the style blocks of the component that renders the strip, and a scoped rule counts only where the strip carries its scope class', () => {
-    expect(styleBlocksOf('---\n---\n<div class="hosts-strip"></div>\n<style>.hosts img{height:20px}</style>')).toEqual(['.hosts img{height:20px}']);
+    expect(styleBlocksOf('---\n---\n<section class="hosts-section"></section>\n<style>.hosts img{height:20px}</style>')).toEqual(['.hosts img{height:20px}']);
     const scoped = '.hosts:where(.astro-abc123) img:where(.astro-abc123)';
     expect(reachesAnImageOfTheStrip(scoped), 'a scope class no picture of the strip carries').toBe(false);
     expect(reachesAnImageOfTheStrip(scoped, new Set(['astro-other'])), 'another scope class').toBe(false);
@@ -307,23 +307,29 @@ when('the built home page', () => {
       .join('\n');
   const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-  it('shows each host of the README: by its logo and its name where it has a logo, by its name alone where it has none', () => {
+  it('shows each host of the README on the ring, with no level: by its logo and its name where it has a logo, by its name alone where it has none', () => {
     const list = hosts();
     expect(list.length).toBeGreaterThanOrEqual(12);
     expect(list.filter(({ name }) => !(name in LOGOS)).map((h) => h.name), 'the hosts shown by name alone').toEqual([]);
-    for (const { name } of list) {
-      const li = new RegExp(`(<li class="mark"><a href="([^"]+)"><img src="([^"]+)" alt(?:="([^"]*)")? width="\\d+" height="\\d+" loading="lazy"></a></li>)?<li class="host [a-z]+">${escape(name)} <b>[a-d]</b></li>`).exec(main());
-      expect(li, `${name} is shown`).not.toBeNull();
+    const ring = /<ul class="hosts">([\s\S]*?)<\/ul>/.exec(main())?.[1] ?? '';
+    const shown = [...ring.matchAll(/<li class="host" style="[^"]*">([\s\S]*?)<\/li>/g)].map((m) => m[1] ?? '');
+    expect(shown.map((li) => /<span class="hname">([^<]*)<\/span>/.exec(li)?.[1]), 'the hosts of the table, no more and no fewer, in its order').toEqual(list.map((h) => h.name));
+    for (const [i, { name }] of list.entries()) {
+      const li = shown[i] ?? '';
       const logo = (LOGOS as Record<string, { file: string; href: string; alt: string }>)[name];
+      const picture = /<a class="logo" href="([^"]+)"><img src="([^"]+)" alt(?:="([^"]*)")? width="\d+" height="\d+" loading="lazy"(?: style="[^"]*")?><\/a>/.exec(li);
       if (logo === undefined) {
-        expect(li?.[1], `${name} has no logo: it is shown by its name`).toBeUndefined();
+        expect(picture, `${name} has no logo: it is shown by its name`).toBeNull();
       } else {
-        expect(li?.[3], `${name} has its logo`).toBe(`/${HOSTS_DIR}/${logo.file}`);
-        expect(li?.[2], `${name}'s logo links where the vendor's rule says`).toBe(logo.href);
-        expect(li?.[4] ?? '').toBe(logo.alt);
+        expect(picture?.[2], `${name} has its logo`).toBe(`/${HOSTS_DIR}/${logo.file}`);
+        expect(picture?.[1], `${name}'s logo links where the vendor's rule says`).toBe(logo.href);
+        expect(picture?.[3] ?? '').toBe(logo.alt);
       }
+      expect(li, `${name} carries no level`).not.toMatch(/<b>[a-d]<\/b>/);
     }
-    expect(main(), 'the Blossom is drawn at 40').toMatch(/<img src="\/hosts\/OAI_OpenAI-Blossom_White\.svg" alt(?:="")? width="40" height="40" loading="lazy">/);
+    expect(main(), 'the Blossom is drawn at 40, the size set on the element').toMatch(/<img src="\/hosts\/OAI_OpenAI-Blossom_White\.svg" alt(?:="")? width="40" height="40" loading="lazy" style="[^"]*">/);
+    expect(textOf(main()), 'no legend of levels').not.toMatch(/\b[a-d] · /);
+    expect(main(), 'no yellow dot on a host').not.toMatch(/<li class="host"[^>]*>[\s\S]*?class="dot"/);
   });
 
   it("has no stylesheet rule that sets a size on the hosts' pictures, a rule scoped to a component counting where the strip's pictures carry its class", () => {
@@ -341,7 +347,8 @@ when('the built home page', () => {
       expect(sha256(readFileSync(join(DIST, HOSTS_DIR, row.file))), `${row.file} as served`).toBe(row.sha256);
     }
     expect(readdirSync(join(DIST, HOSTS_DIR)).sort()).toEqual([...new Set(rowsOf(sources()).map((r) => r.file))].sort());
-    const pictures = [...main().matchAll(/<img\b[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1]);
+    // The figures of the contributors are the product's own files (`/assets/`), held by their own case; every other picture is a logo.
+    const pictures = [...main().matchAll(/<img\b[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1] as string).filter((src) => !src.startsWith('/assets/contributor-'));
     expect(pictures.length).toBeGreaterThanOrEqual(11);
     for (const src of pictures) expect(rowsOf(sources()).map((r) => `/${HOSTS_DIR}/${r.file}`), `${src} is a logo with a source`).toContain(src);
   });

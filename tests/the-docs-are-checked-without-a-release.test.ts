@@ -111,6 +111,17 @@ describe('the check of the docs', () => {
     }
   }, 120_000);
 
+  it('draws the eye in the head of the docs even there, from the brand files that need no install', () => {
+    const product = anUnreleasedProduct();
+    const built = check(product);
+    expect(built.status, built.stdout + built.stderr).toBe(0);
+    for (const theme of ['dark', 'light']) {
+      const mark = readFileSync(join(site, `src/assets/mark-${theme}.svg`), 'utf8');
+      expect(mark, `the ${theme} mark of a check is the eye, not an empty drawing`).toContain('<ellipse');
+      expect(mark, `the ${theme} mark of a check is still`).not.toMatch(/<animate|<set\b/);
+    }
+  }, 120_000);
+
   it('builds a page in a folder of docs/ at its address, and the folder as a group of the sidebar', () => {
     const product = anUnreleasedProduct((dir) => {
       // The product's own reference folders give way to a small one this test holds.
@@ -143,4 +154,50 @@ describe('the check of the docs', () => {
     expect(built.status).not.toBe(0);
     expect(built.stdout + built.stderr).toMatch(/docs\/install\.md: \.\.\/\.\.\/outside\.md leaves the repository/);
   }, 120_000);
+});
+
+describe('a checkout from before the brand', () => {
+  const site = mkdtempSync(join(SITE, '.astro', 'the-brand-refusal-'));
+  afterAll(() => rmSync(site, { recursive: true, force: true }));
+  const SENTINEL = 'src/generated/sentinel.txt';
+
+  beforeAll(() => {
+    for (const path of execFileSync('git', ['ls-files', '-z'], { cwd: SITE, encoding: 'utf8' }).split('\0').filter(Boolean)) {
+      if (path.startsWith('tests/')) continue;
+      mkdirSync(join(site, path, '..'), { recursive: true });
+      cpSync(join(SITE, path), join(site, path));
+    }
+    symlinkSync(join(SITE, 'node_modules'), join(site, 'node_modules'));
+    // What a build would write over, and the refusal must leave where it was.
+    mkdirSync(join(site, 'src/generated'), { recursive: true });
+    writeFileSync(join(site, SENTINEL), 'kept\n');
+  });
+
+  /** The product without the brand's eye: for a release, tagged and with a built binary in place, as a release checkout is. */
+  const withoutTheBrand = (file: string): string => {
+    const dir = anUnreleasedProduct((d) => rmSync(join(d, '.github/the-brand', file)));
+    const version = JSON.parse(readFileSync(join(dir, 'packages/code/package.json'), 'utf8')).version as string;
+    git(dir, 'tag', '-f', `v${version}`);
+    mkdirSync(join(dir, 'packages/code/dist'), { recursive: true });
+    writeFileSync(join(dir, 'packages/code/dist/cli.js'), '');
+    return dir;
+  };
+
+  const build = (product: string, ...flags: string[]) =>
+    spawnSync(process.execPath, [join(site, 'build/build.mjs'), '--from', product, ...flags], {
+      cwd: site,
+      encoding: 'utf8',
+      env: { PATH: process.env.PATH ?? '', HOME: scratch },
+    });
+
+  for (const file of ['eye.mjs', 'palette.mjs', 'wordmark.mjs', 'field.mjs']) {
+    for (const flags of [[], ['--check']]) {
+      it(`is refused by the real build${flags.length ? ' of the check' : ' of a release'} without ${file}, naming the file it lacks, with nothing written`, () => {
+        const built = build(withoutTheBrand(file), ...flags);
+        expect(built.status, built.stdout + built.stderr).not.toBe(0);
+        expect(built.stderr).toContain(`has no .github/the-brand/${file}: the site is built from a release that carries the brand`);
+        expect(readFileSync(join(site, SENTINEL), 'utf8'), 'the refusal came after something was written').toBe('kept\n');
+      }, 120_000);
+    }
+  }
 });

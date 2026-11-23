@@ -1,27 +1,26 @@
 ---
-// The home page: the product page of direction B (ADR-245, ADR-246). Its words are written in the components of
-// `src/components/home/`; the facts it shows (the counts, the hosts and their rungs, the commands, the verdict, the
-// refusal of the session demo, the links) are read by the build from the checkout of the release tag and handed over
-// in `src/generated/home.json`, so none of them is typed twice.
-import '@fontsource/jetbrains-mono/latin-400.css';
-import '@fontsource/jetbrains-mono/latin-500.css';
-import '@fontsource/jetbrains-mono/latin-700.css';
-import '@fontsource/jetbrains-mono/latin-800.css';
-import '@fontsource/instrument-sans/latin-400.css';
-import '@fontsource/instrument-sans/latin-500.css';
-import '@fontsource/instrument-sans/latin-600.css';
+// The home page: the product page in the brand. Its words are written in the components of `src/components/home/`; the
+// facts it shows (the hosts, the contributors, the commands, the verdict, the refusal of the session demo, the links) are
+// read by the build from the checkout of the release tag and handed over in `src/generated/home.json`, so none of them is
+// typed twice; its pictures are the brand's, drawn by the build (`build/the-mark.mjs`).
+import '@fontsource-variable/archivo/wdth.css';
+import '@fontsource/ibm-plex-mono/latin-400.css';
+import '@fontsource/ibm-plex-mono/latin-500.css';
+import '@fontsource/ibm-plex-mono/latin-600.css';
 import '../generated/palette.css';
 import '../styles/home.css';
 import home from '../generated/home.json';
 import built from '../generated/the-build.json';
 import Bar from '../components/home/Bar.astro';
-import Close from '../components/home/Close.astro';
+import Contributors from '../components/home/Contributors.astro';
 import Footer from '../components/home/Footer.astro';
+import Four from '../components/home/Four.astro';
 import Hero from '../components/home/Hero.astro';
-import HostsStrip from '../components/home/HostsStrip.astro';
-import Measured from '../components/home/Measured.astro';
-import Section from '../components/home/Section.astro';
+import Hosts from '../components/home/Hosts.astro';
+import Proves from '../components/home/Proves.astro';
 import SessionDemo from '../components/home/SessionDemo.astro';
+import Start from '../components/home/Start.astro';
+import Steps from '../components/home/Steps.astro';
 import { jsonLdOf, structuredDataOf } from '../../build/the-pages.mjs';
 
 const title = 'mnema: the decision record for AI coding agents';
@@ -38,13 +37,6 @@ const facts = {
   npmUrl: home.links.npm,
   extensionId: home.install.extensionId,
 };
-
-const sections = [
-  { id: 'how', kind: 'record', title: 'Record the why', words: 'When a choice is settled, your agent records it with the reason and what it turned down. It counts once it is accepted.' },
-  { kind: 'session', title: 'Every session starts with it', words: 'Each new session opens with the decisions in force. The next agent starts from what was settled, not from zero.' },
-  { kind: 'rule', title: 'Rules meet the edit', words: 'Point a decision at a path. An agent’s edit there waits for a person, or is refused with the rule named. The shell is not stopped.' },
-  { kind: 'check', title: 'Anyone can check it', words: 'Every event is signed and chained. mnema verify checks the record with no key and no network, and fails when one word was changed.' },
-] as const;
 ---
 
 <!doctype html>
@@ -58,6 +50,7 @@ const sections = [
     <link rel="canonical" href={site} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
     <link rel="icon" href="/favicon.png" type="image/png" sizes="64x64" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <meta property="og:title" content={title} />
     <meta property="og:url" content={site} />
     <meta property="og:locale" content="en" />
@@ -74,24 +67,25 @@ const sections = [
     <script type="application/ld+json" set:html={jsonLdOf(structuredDataOf(facts))} />
   </head>
   <body class="home">
-    <Bar github={home.links.github} />
+    <Bar github={home.links.github} install={home.install.binary} />
     <main id="main">
-      <Hero install={home.install.binary} />
-      {sections.map((s, i) => (
-        <Section id={'id' in s ? s.id : undefined} n={i + 1} kind={s.kind} title={s.title} reverse={i % 2 === 1} command={home.verdict.command} verdict={home.verdict.lines} failure={home.failure}>{s.words}</Section>
-      ))}
+      <Hero />
+      <Steps />
+      <Four command={home.verdict.command} verdict={home.verdict.lines} failure={home.failure} hosts={home.hosts} />
       <SessionDemo refusal={home.refusal} />
-      <section class="proof">
-        <HostsStrip hosts={home.hosts} rungs={home.rungs} />
-        <Measured sessions={home.measured.sessions} followed={home.measured.followed} plugin={home.measured.plugin} cli={home.measured.cli} url={home.measuredUrl} />
-      </section>
-      <Close install={home.install} />
+      <Hosts hosts={home.hosts} ring={home.ring} />
+      <Proves />
+      <Start install={home.install} />
+      <Contributors title={home.contributors.title} thanks={home.contributors.thanks} people={home.contributors.people} />
     </main>
     <Footer owners={home.owners} links={home.links} contact={home.contact} built={built} />
 
-<script>
-      // The copy button: the clipboard API inside the click, and, where the browser refuses it, the text selected so
-      // a keystroke finishes the job.
+    <script>
+      import { line, smooth, relative, f } from '../generated/field.mjs';
+      import { BAR_PHASE_S, frameOf, opennessAt } from '../../build/the-hero-field.mjs';
+
+      // The copy button: the clipboard API inside the click, and, where the browser refuses it, the text selected so a
+      // keystroke finishes the job.
       for (const button of document.querySelectorAll<HTMLButtonElement>('button[data-copy]')) {
         button.addEventListener('click', () => {
           const text = button.dataset.copy ?? '';
@@ -120,64 +114,95 @@ const sections = [
         });
       }
 
-      // Change one word: the illustration flips between the two outputs the page holds, and says which is shown.
-      for (const button of document.querySelectorAll<HTMLButtonElement>('[data-vfy] button')) {
-        button.addEventListener('click', () => {
-          const box = button.closest('[data-vfy]');
-          const broken = box?.classList.toggle('broken') ?? false;
-          button.textContent = broken ? 'Put the word back' : 'Change one word';
-          button.setAttribute('aria-pressed', String(broken));
+      // The hero. The build draws the field at rest into the page; this moves it, and only where the reader has not asked for
+      // less motion: asked, no frame is computed and the pointer is not listened to. The eye follows the pointer, and blinks
+      // on the brand's 9 s cycle (the lids of `eye.mjs`); the lines part round it, and round the pointer.
+      const svg = document.getElementById('field') as SVGSVGElement | null;
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+      if (svg) {
+        const lines = svg.querySelector('.field-lines') as SVGPathElement;
+        const iris = svg.querySelector('.field-iris') as SVGEllipseElement;
+        const dots = [...svg.querySelectorAll('.field-dot')] as SVGCircleElement[];
+        const ring = svg.querySelector('.field-pointer') as SVGCircleElement;
+        const brand = { line, smooth, relative, f };
+        let pointer: [number, number, number] | null = null;
+        let [W, H] = [0, 0];
+        let paused = false;
+        let seen = true;
+        let running = false;
+        let last = 0;
+        const start = performance.now();
+        const size = () => {
+          const box = svg.getBoundingClientRect();
+          [W, H] = [box.width, box.height];
+          svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+          svg.setAttribute('preserveAspectRatio', 'none');
+        };
+        const draw = (now: number) => {
+          const t = now - start;
+          const frame = frameOf(brand, { W, H, t, open: opennessAt(t + BAR_PHASE_S * 1000), pointer });
+          lines.setAttribute('d', frame.d);
+          for (const [name, value] of Object.entries(frame.iris)) iris.setAttribute(name, value as string);
+          frame.dots.forEach((dot: { cx: string; cy: string; r: string }, i: number) => {
+            for (const [name, value] of Object.entries(dot)) dots[i]?.setAttribute(name, value);
+          });
+          ring.toggleAttribute('hidden', frame.pointer === null);
+          if (frame.pointer) for (const [name, value] of Object.entries(frame.pointer)) ring.setAttribute(name, value as string);
+        };
+        const tick = (now: number) => {
+          if (reduced.matches || paused || !seen || document.hidden) {
+            running = false;
+            return;
+          }
+          requestAnimationFrame(tick);
+          if (now - last < (W < 700 ? 60 : 33)) return;
+          last = now;
+          draw(now);
+        };
+        const kick = () => {
+          if (running || reduced.matches || paused || !seen || document.hidden) return;
+          running = true;
+          requestAnimationFrame(tick);
+        };
+        let listening = false;
+        const listen = () => {
+          if (listening || reduced.matches) return;
+          listening = true;
+          size();
+          addEventListener('resize', size);
+          svg.addEventListener('pointermove', (event) => {
+            const box = svg.getBoundingClientRect();
+            pointer = [event.clientX - box.left, event.clientY - box.top, 36];
+          });
+          svg.addEventListener('pointerleave', () => (pointer = null));
+          new IntersectionObserver((entries) => {
+            seen = entries[0]?.isIntersecting ?? true;
+            kick();
+          }).observe(svg);
+          document.addEventListener('visibilitychange', kick);
+        };
+        // The blinking eyes are SMIL, which a stylesheet does not stop: the button pauses them with the field.
+        const button = document.querySelector<HTMLButtonElement>('button.motion');
+        const apply = () => {
+          for (const picture of document.querySelectorAll('svg')) {
+            if (paused) picture.pauseAnimations?.();
+            else picture.unpauseAnimations?.();
+          }
+          if (button) {
+            button.textContent = paused ? 'Play motion' : 'Pause motion';
+          }
+          kick();
+        };
+        button?.addEventListener('click', () => {
+          paused = !paused;
+          apply();
         });
-      }
-
-      // Replay: the demo's messages start again from the first.
-      const replay = document.querySelector<HTMLButtonElement>('.chat .tb button');
-      replay?.addEventListener('click', () => {
-        const chat = replay.closest('.chat');
-        chat?.classList.remove('play');
-        void (chat as HTMLElement | null)?.offsetWidth;
-        chat?.classList.add('play');
-      });
-
-      // The motion starts only where the reader has not asked for less: with it asked, the scenes stay at their last
-      // frame, which is how the markup and the style write them.
-      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        const scene = document.querySelector<HTMLElement>('.scene');
-        if (scene) {
-          const steps = [1, 2, 3, 4].map((i) => scene.querySelector<HTMLElement>(`.st${i}`));
-          const rail = document.querySelector<HTMLElement>('.rail b');
-          let n = 0;
-          scene.classList.add('run');
-          const tick = () => {
-            n = (n % 5) + 1;
-            const shown = Math.min(n, 4);
-            steps.forEach((step, i) => {
-              step?.classList.toggle('on', i < shown);
-              step?.classList.toggle('now', i === shown - 1 && n < 5);
-            });
-            if (rail) rail.style.width = `${shown * 25}%`;
-          };
-          tick();
-          setInterval(tick, 2100);
-        }
-        if ('IntersectionObserver' in window) {
-          const seen = new IntersectionObserver(
-            (entries) => {
-              for (const entry of entries) {
-                const target = entry.target;
-                const once = target.classList.contains('chat');
-                if (entry.isIntersecting) {
-                  target.classList.add('play', 'in');
-                  if (once) seen.unobserve(target);
-                } else if (!once) {
-                  target.classList.remove('play');
-                }
-              }
-            },
-            { threshold: 0.25 },
-          );
-          for (const target of document.querySelectorAll('.ill, .chat')) seen.observe(target);
-        }
+        reduced.addEventListener('change', () => {
+          listen();
+          kick();
+        });
+        listen();
+        kick();
       }
     </script>
   </body>

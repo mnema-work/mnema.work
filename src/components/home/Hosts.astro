@@ -1,0 +1,30 @@
+---
+// One record, every host: the hosts of the README's table on a ring round the brand's eye, joined to it by thin lines. A
+// host is shown by its logo where `hosts/SOURCES.md` lists one for it, and by its name; the page carries no level and no
+// yellow on a host.
+import Logo from './Logo.astro';
+import spokes from '../../generated/ring.svg?raw';
+import eye from '../../generated/eye-ring.svg?raw';
+interface Host { name: string; place: { left: string; top: string }; logo?: { src: string; href: string; alt: string; width: number; height: number } }
+interface Props { hosts: Host[]; ring: { width: number; height: number } }
+const { hosts, ring } = Astro.props;
+---
+<section id="hosts" class="hosts-section">
+  <div class="wrap">
+    <p class="mono ctr">Works where your agents work</p>
+    <h2>One record, every host.</h2>
+    <p class="sub">Any host with an MCP client, and more where its hooks allow.</p>
+    <div class="orbit" style={`--w:${ring.width};--h:${ring.height}`}>
+      <Fragment set:html={spokes} />
+      <div class="core" aria-hidden="true"><div class="disc"><Fragment set:html={eye} /></div></div>
+      <ul class="hosts">
+        {hosts.map((host) => (
+          <li class="host" style={`left:${host.place.left};top:${host.place.top}`}>
+            {host.logo && <a class="logo" href={host.logo.href}><Logo logo={host.logo} /></a>}
+            <span class="hname">{host.name}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </div>
+</section>

@@ -107,6 +107,6 @@ when('the built site', () => {
       expect(html, page).toMatch(/<link rel="icon" href="\/favicon\.png" type="image\/png" sizes="64x64"\s*\/?>/);
     }
     for (const file of ['favicon.svg', 'favicon.png']) expect(readdirSync(DIST), file).toContain(file);
-    expect(readFileSync(join(DIST, 'favicon.svg'), 'utf8')).toContain('prefers-color-scheme:dark');
+    expect(readFileSync(join(DIST, 'favicon.svg'), 'utf8')).not.toContain('prefers-color-scheme');
   });
 });

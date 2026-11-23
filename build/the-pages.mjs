@@ -1,6 +1,7 @@
 // What the site says is READ, never typed: from the README, the pages of `docs/`, the `package.json` of the binary,
-// `.github/the-front-page/accent.mjs` and the SVGs `draw.mjs` made, all of them in the checkout of the product. This file holds the
-// readings, as plain functions over text, so a test can run them over a fixture and over the real tree.
+// and the brand's eye and palette (`.github/the-brand/`), all of them in the checkout of the product. (This said the accent
+// of the front page's `accent.mjs` was read too; the site's colours have been its own palette, `the-palette.mjs`, for a while.)
+// This file holds the readings, as plain functions over text, so a test can run them over a fixture and over the real tree.
 //
 // There are three changes to a page of `docs/`, and no fourth:
 //   1. its title moves from the first `# ` line to the frontmatter, because the site draws the title itself;
@@ -164,7 +165,7 @@ export function pageOf({ name, markdown: source, facts, docs }) {
   ).replace(/^\n+/, '');
   const editUrl = `${facts.repoUrl}/edit/main/docs/${name}.md`;
   const description = descriptionOf(markdown, `docs/${name}.md`);
-  const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\neditUrl: ${JSON.stringify(editUrl)}\nhead: ${socialHeadOf({ title, description })}\n---\n\n`;
+  const front = `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\neditUrl: ${JSON.stringify(editUrl)}\nhead: ${headOfAPage({ title, description, name, facts })}\n---\n\n`;
   // The title is the page's heading and not a heading of its body, so a link to it on GitHub (`#<the title as an id>`) has
   // nothing to land on here: the body begins with an empty anchor of that id.
   // Unless a heading of the body already has that id (a page whose title and a section are the same words).
@@ -191,6 +192,46 @@ export function socialHeadOf({ title, description }) {
     meta('name', 'twitter:title', named),
     meta('name', 'twitter:description', description),
   ]);
+}
+
+/**
+ * The structured data of a page of the docs: the page as a `TechArticle`, whose `headline` is its title, and the trail
+ * from the site to it through `/docs/` as a `BreadcrumbList`. It says what the page says of itself and nothing more: no
+ * rating, no question and answer, no steps. The pages of `docs/` are addressed at `<home>docs/<name>/`.
+ * @param {{ title: string, description: string, name: string, facts: FactsOfTheSite }} page
+ */
+export function docJsonLdOf({ title, description, name, facts }) {
+  const url = `${facts.homeUrl}docs/${name}/`;
+  const crumb = (position, label, item) => ({ '@type': 'ListItem', position, name: label, item });
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'TechArticle',
+        '@id': `${url}#article`,
+        headline: title,
+        description,
+        url,
+        mainEntityOfPage: url,
+        isPartOf: { '@id': `${facts.homeUrl}#website` },
+        publisher: { '@id': `${facts.homeUrl}#organization` },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        '@id': `${url}#trail`,
+        itemListElement: [crumb(1, facts.name, facts.homeUrl), crumb(2, 'Documentation', `${facts.homeUrl}docs/`), crumb(3, title, url)],
+      },
+    ],
+  };
+}
+
+/**
+ * The `head` of a page of the docs, as the JSON (which is YAML) of its frontmatter: the social tags of `socialHeadOf` and
+ * the structured data of `docJsonLdOf`, written by the one `jsonLdOf` the home page's is too.
+ */
+export function headOfAPage({ title, description, name, facts }) {
+  const ld = { tag: 'script', attrs: { type: 'application/ld+json' }, content: jsonLdOf(docJsonLdOf({ title, description, name, facts })) };
+  return JSON.stringify([...JSON.parse(socialHeadOf({ title, description })), ld]);
 }
 
 /** The id GitHub gives a heading: its letters and numbers lowercased, its spaces as hyphens, the rest dropped. */
@@ -564,11 +605,12 @@ export const TEXT_FLOOR = 4.5;
 
 /**
  * How far each grey of Starlight's ramp (`gray-1` the strongest, `gray-7` the faintest) sits from the page's
- * ground toward its ink. Read off Starlight 0.42's own greys, so the chrome keeps its steps; the two ends are
- * the front page's `PAGE`, so no colour is new.
+ * ground toward its ink. Read off Starlight 0.42's own greys, so the chrome keeps its steps, but for the dark `gray-3`,
+ * which reads at 4.46:1 on the brand's charcoal and is moved to 4.5:1 on the header's ground too (the descriptor beside the
+ * mark is set in it); the two ends are the theme's `PAGE` and ink, so no colour is new.
  */
 const RAMP = Object.freeze({
-  dark: [0.922, 0.733, 0.487, 0.267, 0.129, 0.052, 0.03],
+  dark: [0.922, 0.733, 0.53, 0.267, 0.129, 0.052, 0.03],
   light: [0.948, 0.871, 0.733, 0.513, 0.267, 0.078, 0.039],
 });
 
@@ -595,7 +637,7 @@ export function themeOf({ ACCENT, PAGE, INK = PAGE }) {
     return {
       accent: ACCENT[theme],
       'accent-high': text,
-      'accent-low': theme === 'dark' ? mix(ground, ACCENT[theme], 0.22) : mix(ink, ACCENT[theme], 0.2),
+      'accent-low': mix(ground, ACCENT[theme], theme === 'dark' ? 0.22 : 0.08),
       'text-accent': text,
       black: ground,
       white: ink,
@@ -690,7 +732,7 @@ export function descriptionOf(markdown, from) {
 /**
  * The structured data of the site, built from facts the repository holds: the name, the description, the version and
  * the licence of `@mnema/code`, the site's own address, and where the same software is found (the repository, npm and
- * the two extension stores), the social card as its image and the favicon.svg as the publisher's logo (both files the
+ * the two extension stores), the social card as its image and a 512 px PNG of the favicon as the publisher's logo (both files the
  * site writes at its root). It carries no rating and no review: nothing here is a number somebody gave.
  * @param {FactsOfTheSite} facts
  */
@@ -704,7 +746,7 @@ export function structuredDataOf(facts) {
         '@id': `${facts.homeUrl}#organization`,
         name: facts.owner,
         url: facts.homeUrl,
-        logo: { '@type': 'ImageObject', url: `${facts.homeUrl}favicon.svg` },
+        logo: { '@type': 'ImageObject', url: `${facts.homeUrl}logo.png`, width: 512, height: 512 },
         sameAs: [`https://github.com/${facts.owner}`],
       },
       { '@type': 'WebSite', '@id': `${facts.homeUrl}#website`, name: facts.name, url: facts.homeUrl, description: facts.description },

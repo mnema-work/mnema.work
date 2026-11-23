@@ -374,10 +374,12 @@ when('the built home page', () => {
       const label = /aria-label="([^"]*)"/.exec(m[1] ?? '')?.[1];
       if (label !== undefined) expect(label.toLowerCase(), `the name of "${m[2]}" holds its text`).toContain((m[2] ?? '').toLowerCase());
     }
-    expect(/<button[^>]*class="motion"[^>]*>([^<]*)<\/button>/.exec(html)?.[0], 'the pause button is named by its text alone').toMatch(/^<button type="button" class="motion" aria-pressed="false">Pause motion<\/button>$/);
+    expect(/<button[^>]*class="motion"[^>]*>([^<]*)<\/button>/.exec(html)?.[0], 'the pause button is named by its text alone').toMatch(/^<button type="button" class="motion">Pause motion<\/button>$/);
     const toggled = scriptOfTheHome();
     expect(toggled, 'the text of the pause button changes in both states').toContain('Play motion');
     expect(toggled, 'and the script gives it no other name').not.toMatch(/aria-label/);
+    expect(html, 'a button whose name changes is not also announced as pressed').not.toMatch(/aria-pressed/);
+    expect(toggled).not.toMatch(/aria-pressed/);
     expect([...html.matchAll(/<button\b/g)].length, 'the copy button and the one that pauses the motion').toBeGreaterThanOrEqual(2);
     expect(sourceOf('src/styles/home.css')).toMatch(/:focus-visible\s*\{[^}]*outline:/);
     expect(html, 'no theme button: the page is dark').not.toMatch(/class="tgl"|data-theme/);
@@ -665,21 +667,63 @@ when('the eye is never inverted, on any ground, and its iris has no ring', () =>
 when('the hero of the home page', () => {
   const page = (): string => readText(join(DIST, 'index.html'));
 
-  it('blinks on the brand’s cycle: the stops of the hero are the stops of the eye drawn at the bar, which is the brand’s own', async () => {
+  it('blinks on the brand’s cycle: the whole cycle of the hero, sampled finely, is the eye drawn at the bar, which is the brand’s own: its closures, their times and its easing', async () => {
     const { CYCLE_MS, opennessAt } = await import('../build/the-hero-field.mjs');
     const eye = /<svg[^>]*>(?:(?!<\/svg>)[\s\S])*<clipPath id="eye-bar">[\s\S]*?<\/svg>/.exec(page())?.[0] ?? '';
     expect(eye, 'the eye of the bar is found').not.toBe('');
-    const animate = /<animate attributeName="ry" dur="([\d.]+)s"[^>]*keyTimes="([^"]+)"[^>]*values="([^"]+)"/.exec(eye);
-    expect(animate, 'the brand animates the lids of this eye').not.toBeNull();
+    const animate = /<animate attributeName="ry" dur="([\d.]+)s"[^>]*calcMode="([^"]+)"[^>]*keyTimes="([^"]+)" keySplines="([^"]+)" values="([^"]+)"/.exec(eye);
+    expect(animate, 'the brand animates the lids of this eye, eased by splines').not.toBeNull();
     expect(Number(animate?.[1]) * 1000, 'the length of the cycle').toBe(CYCLE_MS);
-    const times = (animate?.[2] ?? '').split(';').map(Number);
-    const ry = (animate?.[3] ?? '').split(';').map(Number);
+    expect(animate?.[2], 'the brand eases by splines').toBe('spline');
+    const times = (animate?.[3] ?? '').split(';').map(Number);
+    const splines = (animate?.[4] ?? '').split(';').map((one) => one.split(' ').map(Number));
+    const ry = (animate?.[5] ?? '').split(';').map(Number);
     const full = Number(/<ellipse cx="0" cy="0" rx="([\d.]+)"/.exec(eye)?.[1]);
     expect(times.length).toBe(ry.length);
-    expect(ry.filter((v) => v / full < 0.1).length, 'the brand’s eye closes twice (once, then twice) in its cycle').toBe(2);
-    for (const [i, time] of times.entries()) {
-      expect(Math.abs(opennessAt(time * CYCLE_MS) - Math.min(1, (ry[i] ?? 0) / full)), `the hero at ${time} of the cycle`).toBeLessThan(0.05);
-    }
+    expect(splines.length, 'a spline for each segment').toBe(times.length - 1);
+
+    // The brand's lids at a point of the cycle, by SMIL's own rule: the cubic Bezier of the segment's spline, solved for x by bisection.
+    const brand = (at: number): number => {
+      let i = times.findIndex((t, k) => at >= t && at <= (times[k + 1] ?? 1));
+      i = Math.min(i, times.length - 2);
+      const [x1, y1, x2, y2] = splines[i] as number[];
+      const s = (at - (times[i] as number)) / ((times[i + 1] as number) - (times[i] as number));
+      const bez = (u: number, p: number, q: number): number => 3 * (1 - u) ** 2 * u * p + 3 * (1 - u) * u * u * q + u ** 3;
+      let [lo, hi] = [0, 1];
+      for (let k = 0; k < 40; k++) {
+        const mid = (lo + hi) / 2;
+        if (bez(mid, x1 as number, x2 as number) < s) lo = mid;
+        else hi = mid;
+      }
+      const eased = bez((lo + hi) / 2, y1 as number, y2 as number);
+      const [v0, v1] = [(ry[i] as number) / full, (ry[i + 1] as number) / full];
+      return v0 + (v1 - v0) * eased;
+    };
+
+    const samples = 1800;
+    const closures = (read: (at: number) => number): number[] => {
+      const centres: number[] = [];
+      let start = -1;
+      for (let k = 0; k <= samples; k++) {
+        const shut = read(k / samples) < 0.1;
+        if (shut && start < 0) start = k;
+        if ((!shut || k === samples) && start >= 0) {
+          centres.push((start + k - 1) / 2 / samples);
+          start = -1;
+        }
+      }
+      return centres;
+    };
+    const hero = (at: number): number => opennessAt(at * CYCLE_MS);
+    const [theirs, ours] = [closures(brand), closures(hero)];
+    expect(theirs.length, 'the brand’s eye closes twice in its cycle (once, then twice)').toBe(2);
+    expect(ours.length, 'the hero closes as often as the brand’s eye').toBe(theirs.length);
+    ours.forEach((centre, i) => expect(Math.abs(centre - (theirs[i] as number)), `closure ${i + 1} is at the brand’s time`).toBeLessThan(0.002));
+    // At each stop the same value, and in between the same easing, along the whole cycle.
+    for (const [i, time] of times.entries()) expect(Math.abs(hero(time) - Math.min(1, (ry[i] ?? 0) / full)), `the hero at the stop ${time}`).toBeLessThan(0.005);
+    let worst = 0;
+    for (let k = 0; k <= samples; k++) worst = Math.max(worst, Math.abs(hero(k / samples) - brand(k / samples)));
+    expect(worst, 'the hero strays from the brand’s eye somewhere between its stops').toBeLessThan(0.02);
   });
 
   it('draws its iris at 0.43 of the opening, the approved page’s, and not at the brand’s eye’s 0.74', async () => {

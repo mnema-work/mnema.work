@@ -189,7 +189,6 @@ const facts = {
             else picture.unpauseAnimations?.();
           }
           if (button) {
-            button.setAttribute('aria-pressed', String(paused));
             button.textContent = paused ? 'Play motion' : 'Pause motion';
           }
           kick();

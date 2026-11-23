@@ -7,6 +7,26 @@
 /** The length of the cycle of the brand's eye, in milliseconds. */
 export const CYCLE_MS = 9000;
 
+/** How far open the brand's lids are when shut: its `ry` goes to 0.4 of the 15.5 an open iris has. */
+const SHUT = 0.4 / 15.5;
+
+/**
+ * The brand's easing between two stops: `keySplines=".45 0 .25 1"` on every segment of its cycle, the cubic Bezier of those
+ * control points, solved for the progress of the time.
+ * @param {number} s progress of the time through the segment, 0 to 1
+ */
+function easeOf(s) {
+  const [x1, y1, x2, y2] = [0.45, 0, 0.25, 1];
+  const at = (u, a, b) => 3 * (1 - u) * (1 - u) * u * a + 3 * (1 - u) * u * u * b + u * u * u;
+  let [lo, hi] = [0, 1];
+  for (let i = 0; i < 30; i++) {
+    const mid = (lo + hi) / 2;
+    if (at(mid, x1, x2) < s) lo = mid;
+    else hi = mid;
+  }
+  return at((lo + hi) / 2, y1, y2);
+}
+
 /**
  * How open the lids are along the 9 s cycle of the brand's eye: open, then one blink, then two. The stops are those of
  * `.github/the-brand/eye.mjs` (the lids close at 0.83, 0.925 of the cycle), and each closing is eased like the brand's.
@@ -16,14 +36,13 @@ export const CYCLE_MS = 9000;
 export function opennessAt(ms) {
   const at = (((ms % CYCLE_MS) + CYCLE_MS) % CYCLE_MS) / CYCLE_MS;
   /** @type {readonly (readonly [number, number])[]} */
-  const stops = [[0.8, 1], [0.83, 0], [0.86, 1], [0.9, 1], [0.925, 0], [0.95, 1]];
+  const stops = [[0.8, 1], [0.83, SHUT], [0.86, 1], [0.9, 1], [0.925, SHUT], [0.95, 1]];
   for (let i = 1; i < stops.length; i++) {
     const [t0, o0] = stops[i - 1];
     const [t1, o1] = stops[i];
     if (at >= t0 && at <= t1) {
       const s = (at - t0) / (t1 - t0);
-      const eased = s * s * (3 - 2 * s);
-      return o0 + (o1 - o0) * eased;
+      return o0 + (o1 - o0) * easeOf(s);
     }
   }
   return 1;

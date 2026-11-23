@@ -26,8 +26,13 @@ directory that is not exactly at a release tag, that has a tracked file changed 
 To check the docs of any commit of the product, for example the head of a pull request, add `--check`:
 `node build/build.mjs --from <checkout> --check`. The checkout may be at any commit and need not be built (a tracked file
 changed is still refused). It builds the pages of `docs/` with the same links, table of contents and Starlight build as a
-release, and stops on what a release build stops on for them; it does not write `/record/`, `og.png`, `llms.txt`,
-`robots.txt` or the favicon, which need a release and the product built, and what it builds is for throwing away.
+release, and stops on what a release build stops on for them, with the eye of the brand in the header (the brand's eye and
+palette load without the product installed); it does not write `/record/`, `og.png`, `llms.txt`, `robots.txt` or the
+favicon, which need a release and the product built, and what it builds is for throwing away.
+
+The site is built from a release that carries the brand (`.github/the-brand/` of the product). A checkout without
+`eye.mjs` or `palette.mjs`, release build or `--check` alike, is refused before anything is written, with a sentence naming
+the file it lacks: there is no older drawing to fall back to.
 
 ## What the build does
 
@@ -45,8 +50,9 @@ release, and stops on what a release build stops on for them; it does not write 
 3. Writes `/record/` with the binary built from the same checkout, and stops when the record does not verify. The binary
    is the one of that tag, built from its sources, and not a version taken from npm: the site is made of one tag, and a
    tag does not depend on when a package reaches a registry.
-4. Adds `og.png`, `llms.txt`, `robots.txt`, the favicon (the bare M, drawn from the same sources as the extension's icon)
-   and the `CNAME`.
+4. Adds `og.png`, `llms.txt`, `robots.txt`, the favicon (the very SVG the product's own
+   `/record/` page wears, and its 64-pixel PNG) and the `CNAME`. The eye beside the name, in the docs' header and on the home
+   page, is the brand's eye at rest, drawn by `build/the-mark.mjs` from the product's `.github/the-brand/` and never typed here.
 
 The two addresses the build is made around are in `build/the-site.mjs` and nowhere else.
 

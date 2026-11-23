@@ -1,6 +1,7 @@
 // What the site says is READ, never typed: from the README, the pages of `docs/`, the `package.json` of the binary,
-// `.github/the-front-page/accent.mjs` and the SVGs `draw.mjs` made, all of them in the checkout of the product. This file holds the
-// readings, as plain functions over text, so a test can run them over a fixture and over the real tree.
+// and the brand's eye and palette (`.github/the-brand/`), all of them in the checkout of the product. (This said the accent
+// of the front page's `accent.mjs` was read too; the site's colours have been its own palette, `the-palette.mjs`, for a while.)
+// This file holds the readings, as plain functions over text, so a test can run them over a fixture and over the real tree.
 //
 // There are three changes to a page of `docs/`, and no fourth:
 //   1. its title moves from the first `# ` line to the frontmatter, because the site draws the title itself;

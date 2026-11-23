@@ -23,7 +23,7 @@ import {
   verifyCommandOf,
   withoutWhatIsNotOnTheSite,
 } from './the-pages.mjs';
-import { emptyMarkSvg, faviconPng, faviconSvg, markSvg, theSources } from './the-favicon.mjs';
+import { faviconPng, faviconSvg, markSvg, theBrand } from './the-mark.mjs';
 import { hostsOf, installOf, MEASURED, measuredOf, verdictLinesOf } from './the-home.mjs';
 import { HOSTS_DIR, ownersOf, withLogos } from './the-hosts.mjs';
 import { ACCENT, INK, PAGE, paletteCss } from './the-palette.mjs';
@@ -91,6 +91,8 @@ export async function theFacts(root, { check = false } = {}) {
  * read and fails as in a release build, and the verdict of the record, which needs the product built, is left out.
  */
 export async function prepare({ root, site = SITE, check = false }) {
+  // Before anything is written: a checkout from before the brand is refused, and the files already here stay as they were.
+  const brand = await theBrand(root);
   const facts = await theFacts(root, { check });
   const readme = readFileSync(join(root, 'README.md'), 'utf8');
   const { files, names: docs, read } = docsOf(root);
@@ -190,19 +192,22 @@ export async function prepare({ root, site = SITE, check = false }) {
 
   writeFileSync(into('src/generated/theme.css'), themeCss({ ACCENT, PAGE, INK }));
   writeFileSync(into('src/generated/palette.css'), paletteCss());
-  // The favicon and the mark are drawn from the wordmark in the product's BUILT code. A check does not build the product,
-  // so its mark is an empty drawing: the site it makes is never published.
-  const sources = check ? null : await theSources(root);
+  // The favicon is the product's own, the one its record page wears, and it needs the product built: a check does not
+  // build it, and the site it makes is never published.
   if (!check) {
-    writeFileSync(into('public/favicon.svg'), faviconSvg(sources));
-    writeFileSync(into('public/favicon.png'), await faviconPng(sources));
+    const favicon = await faviconSvg(root);
+    writeFileSync(into('public/favicon.svg'), favicon);
+    writeFileSync(into('public/favicon.png'), await faviconPng(favicon));
   }
   // The domain the pages are served from, read by GitHub Pages from the published output.
   writeFileSync(into('public/CNAME'), `${new URL(SITE_URL).host}\n`);
-  // The mark beside the name, in the docs' header and on the home page: the same letter as the favicon, in the paints of a theme.
+  // The mark beside the name, in the docs' header and on the home page: the brand's eye at rest, in the paints of a theme.
+  // A check draws it too: the eye needs no installed package. The home page draws the dark one twice (bar and foot), so the
+  // foot's has a clip of its own.
   for (const theme of ['dark', 'light']) {
-    writeFileSync(into(`src/assets/mark-${theme}.svg`), check ? emptyMarkSvg(28) : markSvg(sources, theme, 28));
+    writeFileSync(into(`src/assets/mark-${theme}.svg`), markSvg(brand, theme, 28));
   }
+  writeFileSync(into('src/assets/mark-foot.svg'), markSvg(brand, 'dark', 28, 'mark-eye-foot'));
   writeFileSync(into('src/generated/the-build.json'), `${JSON.stringify({ version: facts.version, tag: facts.tag, sha: facts.sha, repoUrl: facts.repoUrl })}\n`);
   return facts;
 }

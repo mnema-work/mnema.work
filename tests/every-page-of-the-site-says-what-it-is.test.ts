@@ -43,6 +43,7 @@ import {
   jsonLdOf,
   pageOf,
   sitemapWith,
+  docJsonLdOf,
   socialHeadOf,
   structuredDataOf,
 } from '../build/the-pages.mjs';
@@ -143,7 +144,7 @@ describe('the structured data is the facts, with where the software is found and
       '@id': 'https://o.github.io/r/#organization',
       name: 'o',
       url: 'https://o.github.io/r/',
-      logo: { '@type': 'ImageObject', url: 'https://o.github.io/r/favicon.svg' },
+      logo: { '@type': 'ImageObject', url: 'https://o.github.io/r/logo.png', width: 512, height: 512 },
       sameAs: ['https://github.com/o'],
     });
     expect(data['@graph'][2]).toMatchObject({
@@ -218,7 +219,24 @@ describe('the social tags of a page of docs/ name the product', () => {
 
   it('are in the frontmatter of the page the build writes', () => {
     const out = pageOf({ name: 'a', markdown: '# A\n\nSays more.\n', facts: { ...FACTS, base: '/r' }, docs: new Set(['a']) }) as string;
-    expect(out).toContain(`head: ${socialHeadOf({ title: 'A', description: 'Says more.' })}\n`);
+    const head = JSON.parse(/^head: (.*)$/m.exec(out)?.[1] ?? 'null') as { tag: string; attrs: Record<string, string>; content?: string }[];
+    expect(head.slice(0, 3), 'the social tags come first, as socialHeadOf writes them').toEqual(JSON.parse(socialHeadOf({ title: 'A', description: 'Says more.' })));
+    expect(head, 'and one block of structured data after them').toHaveLength(4);
+    expect(head[3]?.tag).toBe('script');
+    expect(head[3]?.attrs).toEqual({ type: 'application/ld+json' });
+    expect(JSON.parse(head[3]?.content ?? '{}')['@graph'][0]).toMatchObject({ '@type': 'TechArticle', headline: 'A', url: 'https://o.github.io/r/docs/a/' });
+  });
+
+  it('say what a page is as a TechArticle and its trail from the site through /docs/, and claim no rating, no question and no steps', () => {
+    const data = docJsonLdOf({ title: 'Install', description: 'How.', name: 'reference/cli/init', facts: FACTS }) as { '@graph': { '@type': string; itemListElement: { item: string }[] }[] };
+    expect(data['@graph'].map((n: { '@type': string }) => n['@type'])).toEqual(['TechArticle', 'BreadcrumbList']);
+    expect(data['@graph'][0]).toMatchObject({ headline: 'Install', url: 'https://o.github.io/r/docs/reference/cli/init/' });
+    expect(data['@graph'][1]?.itemListElement.map((i: { item: string }) => i.item)).toEqual([
+      'https://o.github.io/r/',
+      'https://o.github.io/r/docs/',
+      'https://o.github.io/r/docs/reference/cli/init/',
+    ]);
+    expect(JSON.stringify(data)).not.toMatch(/FAQPage|HowTo|aggregateRating|reviewRating|"Review"|"Question"/);
   });
 });
 
@@ -360,13 +378,19 @@ when('the built pages', () => {
     }
   });
 
-  it('carries the structured data of structuredDataOf on the landing and on /record/ and on no other page', () => {
+  it('carries the structured data of structuredDataOf on the landing and on /record/, a TechArticle with its trail on each page of docs/, and none on any other page', () => {
     const expected = structuredDataOf(facts);
     for (const file of files) {
       const blocks = all(file, /<script type="application\/ld\+json">([\s\S]*?)<\/script>/g);
       if (file === 'index.html' || file === 'record/index.html') {
         expect(blocks, `${file}: one block of structured data`).toHaveLength(1);
         expect(JSON.parse(blocks[0] ?? ''), `${file}: not built from the facts`).toEqual(expected);
+      } else if (file.startsWith('docs/') && file !== 'docs/index.html') {
+        expect(blocks, `${file}: one block of structured data`).toHaveLength(1);
+        const [article, trail] = JSON.parse(blocks[0] ?? '')['@graph'];
+        expect(article['@type'], file).toBe('TechArticle');
+        expect(trail['@type'], file).toBe('BreadcrumbList');
+        expect(article.url, `${file}: the page's own address`).toBe(`${facts.homeUrl}${file.replace(/index\.html$/, '')}`.replace(/\/$/, '/'));
       } else {
         expect(blocks, `${file} carries structured data`).toEqual([]);
       }

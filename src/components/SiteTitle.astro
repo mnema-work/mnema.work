@@ -1,0 +1,18 @@
+---
+// The title of the docs' header: the brand's eye beside its word, still (the eye blinks on the home page only), and the
+// descriptor in small text beside them, which a narrow screen hides. On the dark page the eye is drawn as it is and on the
+// light page it sits in its charcoal seal; both are written by the build (`src/assets/mark-*.svg`), from the brand's own
+// drawing. The whole of it links to the home page, as Starlight's own title does.
+import dark from '../assets/mark-dark.svg?raw';
+import light from '../assets/mark-light.svg?raw';
+import word from '../generated/word-docs.svg?raw';
+import descriptor from '../generated/descriptor.json';
+const { siteTitleHref } = Astro.locals.starlightRoute;
+---
+
+<a href={siteTitleHref} class="site-title sl-flex" aria-label="mnema">
+  <span class="mark only-dark" set:html={dark} />
+  <span class="mark only-light" set:html={light} />
+  <span class="word" set:html={word} />
+</a>
+<span class="descriptor">{descriptor.text}</span>

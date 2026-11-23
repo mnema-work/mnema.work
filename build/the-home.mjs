@@ -1,64 +1,52 @@
 // The facts the home page shows, read from the checkout of the release tag the site is built from and from nothing
-// else: the counts of the measured block, the hosts and their rungs, the commands that install, the verdict of the
-// record. The words around them are the page's own (`src/pages/index.astro`); a number, a host and a command are not,
+// else: the hosts, the contributors, the commands that install, the verdict of the record. The words around them are the page's own (`src/pages/index.astro`); a number, a host and a command are not,
 // and `tests/the-home-page-is-held-to-its-sources.test.ts` holds each one of them to the file it is read from.
 
-import { readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { sectionOf } from './the-pages.mjs';
 
-/** The folder of the product's measurements the page cites, and the files it reads its counts from. */
-export const MEASURED = 'measurements/paid-block-2026-11';
-const STAGE_ONE = `${MEASURED}/results/stage1/table.json`;
-const STAGE_TWO = `${MEASURED}/results/stage2/counts.json`;
-
-/** The cell of stage 1 the page counts: the rule written only in AGENTS.md, in the neutral parity task. */
-const AGENTS_CELL = 'A-agentsmd parity-neutral';
-
-const json = (root, path) => JSON.parse(readFileSync(join(root, path), 'utf8'));
-const sum = (numbers) => numbers.reduce((a, b) => a + b, 0);
-
 /**
- * The counts of the measured block, from the machine-readable results at the tag. The sessions are the sessions of both
- * stages; "followed" is the sessions of the AGENTS.md arm that obeyed; the two other counts are the decisions the agent
- * recorded and the ones it linked to a path (`governs_links`), through the plugin (arm B) and through the command line
- * alone (arm C) in the decision tasks of stage 2.
- * @returns {{ sessions: number, followed: [number, number], plugin: [number, number], cli: [number, number] }}
- */
-export function measuredOf(root) {
-  const one = json(root, STAGE_ONE);
-  const two = json(root, STAGE_TWO);
-  const agents = one.cells[AGENTS_CELL];
-  if (agents === undefined) throw new Error(`${STAGE_ONE} has no cell "${AGENTS_CELL}"`);
-  const arm = (letter) => {
-    const cells = Object.entries(two.cells).filter(([name]) => name.startsWith(`${letter} `) && two.cells[name].q2 !== undefined);
-    if (cells.length === 0) throw new Error(`${STAGE_TWO} has no decision cell of arm ${letter}`);
-    return [sum(cells.map(([, c]) => c.q2.governs_links)), sum(cells.map(([, c]) => c.q2.recorded))];
-  };
-  return {
-    sessions: one.checks.sessions + sum(Object.values(two.cells).map((c) => c.n)),
-    followed: [agents.code.obeyed ?? 0, agents.n],
-    plugin: arm('B'),
-    cli: arm('C'),
-  };
-}
-
-/**
- * The hosts and their rungs, as the README's generated table gives them (it is written from the product's host table and
- * a test of the product holds it there), in the table's order; and the four rungs in the words of the sentence above it.
- * @returns {{ hosts: { name: string, rung: string }[], rungs: { letter: string, words: string }[] }}
+ * The hosts, as the README's generated table gives them (it is written from the product's host table and a test of the
+ * product holds it there), in the table's order. The table also says a rung for each, which the site does not show.
+ * @returns {{ hosts: { name: string }[] }}
  */
 export function hostsOf(readme) {
   const hosts = [];
   for (const line of readme.split('\n')) {
-    const row = /^\| .*? \| \*\*([^*]+)\*\*<br>.*? \| \*\*\(([a-d])\)\*\* \|/.exec(line);
-    if (row) hosts.push({ name: row[1], rung: row[2] });
+    const row = /^\| .*? \| \*\*([^*]+)\*\*<br>.*? \| \*\*\([a-d]\)\*\* \|/.exec(line);
+    if (row) hosts.push({ name: row[1] });
   }
   if (hosts.length === 0) throw new Error("the README's host table has no row the site can read");
-  const sentence = /\((a)\) (.*?), \((b)\) (.*?), \((c)\) (.*?), \((d)\) ([^.]*)\./s.exec(sectionOf(readme, 'Hosts').replace(/\s+/g, ' '));
-  if (sentence === null) throw new Error("the README's Hosts section does not say its four rungs the way the site reads them");
-  const rungs = [0, 2, 4, 6].map((i) => ({ letter: sentence[i + 1], words: sentence[i + 2] }));
-  return { hosts, rungs };
+  return { hosts };
+}
+
+/**
+ * The contributors the README thanks, in its order: between `<!-- contributors:start -->` and `<!-- contributors:end -->`,
+ * each cell holds the profile it links to, the figure of the product's `docs/assets/` it shows and the login. The words
+ * above them (the heading and the line of thanks) are the README's, read here and not typed. A figure the checkout does
+ * not hold stops the build.
+ * @param {string} readme
+ * @param {string} [root] the checkout, to hold each figure to a file that is there
+ * @returns {{ title: string, thanks: string, people: { login: string, profile: string, image: string }[] }}
+ */
+export function contributorsOf(readme, root) {
+  const block = /<!-- contributors:start -->([\s\S]*?)<!-- contributors:end -->/.exec(readme)?.[1];
+  const title = /^## (Contributors)\s*$/m.exec(readme)?.[1];
+  const thanks = /^## Contributors\s*\n+<p align="center">([^<]*)<\/p>/m.exec(readme)?.[1]?.trim();
+  if (block === undefined || title === undefined || thanks === undefined) {
+    throw new Error("the README's Contributors section is not in the shape the site reads: a heading, a line of thanks, and a block between the contributors markers");
+  }
+  const people = [...block.matchAll(/<a href="(https:\/\/github\.com\/([A-Za-z0-9-]+))"><img src="(docs\/assets\/contributor-[^"]+\.svg)"/g)].map((m) => ({
+    login: m[2],
+    profile: m[1],
+    image: m[3],
+  }));
+  if (people.length === 0) throw new Error('the README names no contributor between its contributors markers');
+  for (const person of people) {
+    if (root !== undefined && !existsSync(join(root, person.image))) throw new Error(`the README shows ${person.image} for ${person.login} and the checkout does not hold it`);
+  }
+  return { title, thanks, people };
 }
 
 /** A fenced block of shell of a section, as the commands of its lines with the `#` comments cut off. */

@@ -30,27 +30,24 @@ export default defineConfig({
     starlight({
       title: 'mnema',
       favicon: '/favicon.svg',
-      // The mark beside the name, which Starlight links to the root of the site: the home page.
-      logo: { dark: './src/assets/mark-dark.svg', light: './src/assets/mark-light.svg', alt: '' },
       social: [{ icon: 'github', label: 'GitHub', href: facts.repoUrl }],
       sidebar,
       customCss: [
         // Self-hosted, from the packages: no page asks another host for a font.
-        '@fontsource/jetbrains-mono/latin-400.css',
-        '@fontsource/jetbrains-mono/latin-500.css',
-        '@fontsource/jetbrains-mono/latin-700.css',
-        '@fontsource/jetbrains-mono/latin-800.css',
-        '@fontsource/instrument-sans/latin-400.css',
-        '@fontsource/instrument-sans/latin-500.css',
-        '@fontsource/instrument-sans/latin-600.css',
+        '@fontsource-variable/archivo/wdth.css',
+        '@fontsource/ibm-plex-mono/latin-400.css',
+        '@fontsource/ibm-plex-mono/latin-500.css',
+        '@fontsource/ibm-plex-mono/latin-600.css',
         './src/generated/theme.css',
         './src/styles/site.css',
       ],
-      components: { Footer: './src/components/Footer.astro', SocialIcons: './src/components/SocialIcons.astro', ThemeProvider: './src/components/ThemeProvider.astro', ThemeSelect: './src/components/ThemeSelect.astro' },
+      // The header's title is the mark beside the name (`SiteTitle.astro`): the eye, still, and the word of the brand.
+      components: { Footer: './src/components/Footer.astro', SiteTitle: './src/components/SiteTitle.astro', SocialIcons: './src/components/SocialIcons.astro', ThemeProvider: './src/components/ThemeProvider.astro', ThemeSelect: './src/components/ThemeSelect.astro' },
       head: [
         // The favicon is the eye of the product's record page, one for the domain and not adaptive; it is the icon, and the PNG is only for browsers that draw no SVG in a tab.
         { tag: 'link', attrs: { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml', sizes: 'any' } },
         { tag: 'link', attrs: { rel: 'icon', href: '/favicon.png', type: 'image/png', sizes: '64x64' } },
+        { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png', sizes: '180x180' } },
         { tag: 'meta', attrs: { property: 'og:image', content: card } },
         { tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
         { tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },

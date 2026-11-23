@@ -1,0 +1,23 @@
+---
+// How a decision goes, in four steps, on a line of the field. The words are a list; the field and its four signs are the
+// brand's drawing, and are hidden from assistive technology (the list says it).
+import steps from '../../generated/steps.svg?raw';
+import { TITLE } from './words';
+const items = [
+  { title: 'A call is settled', words: 'Money stays in integer cents; a decimal library was slower.' },
+  { title: 'Recorded, signed', words: 'why · Float sums drift. not · A decimal library.' },
+  { title: 'Kept in the repo', words: 'your-repo/.mnema/: appended, never edited.' },
+  { title: 'Handed over', words: `The next session opens with ${TITLE}.` },
+];
+---
+<section id="how" class="how">
+  <div class="wrap">
+    <h2 class="mono">How it goes</h2>
+    <ol class="steps">
+      {items.map((item, i) => (
+        <li><span class="n mono">0{i + 1}</span><b>{item.title}</b><span>{item.words}</span></li>
+      ))}
+    </ol>
+    <div class="steps-figure"><Fragment set:html={steps} /></div>
+  </div>
+</section>

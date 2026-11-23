@@ -190,7 +190,7 @@ describe('a checkout from before the brand', () => {
       env: { PATH: process.env.PATH ?? '', HOME: scratch },
     });
 
-  for (const file of ['eye.mjs', 'palette.mjs']) {
+  for (const file of ['eye.mjs', 'palette.mjs', 'wordmark.mjs', 'field.mjs']) {
     for (const flags of [[], ['--check']]) {
       it(`is refused by the real build${flags.length ? ' of the check' : ' of a release'} without ${file}, naming the file it lacks, with nothing written`, () => {
         const built = build(withoutTheBrand(file), ...flags);

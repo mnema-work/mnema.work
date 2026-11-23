@@ -1,0 +1,9 @@
+---
+// A host's logo, as the vendor's file shows it: the size the README's table gives it, and a tall one (the Codex mark fills
+// about half of its own box, so it is drawn twice as high) pulled in by half of what it is higher than a line, so the row
+// it sits in keeps its height. The size is set on the element, and no stylesheet rule fixes the size of a host's image.
+interface Props { logo: { src: string; alt: string; width: number; height: number } }
+const { logo } = Astro.props;
+const pull = Math.max(0, (logo.height - 20) / 2);
+---
+<img src={logo.src} alt={logo.alt} width={logo.width} height={logo.height} loading="lazy" style={pull > 0 ? `margin:-${pull}px -${pull * 0.8}px` : undefined} />

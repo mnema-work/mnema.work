@@ -1,5 +1,6 @@
 ---
-import mark from '../../assets/mark-foot.svg?raw';
+import eye from '../../generated/eye-foot.svg?raw';
+import word from '../../generated/word.svg?raw';
 interface Props {
   owners: string[];
   links: { npm: string; marketplace: string; github: string };
@@ -12,7 +13,7 @@ const { owners, links, contact, built } = Astro.props;
   <div class="wrap">
     <div class="cols">
       <div>
-        <a class="brand" href="#top"><Fragment set:html={mark} /><span class="name">mnema</span></a>
+        <a class="brand" href="#top" aria-label="mnema, top of the page"><Fragment set:html={eye} /><Fragment set:html={word} /></a>
         <p class="tagline">The decision record for AI coding agents.</p>
       </div>
       <div><h3>Product</h3><ul>

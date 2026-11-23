@@ -118,7 +118,8 @@ export function frameOf(field, { W, H, t = 0, open = 1, pointer = null, drift = 
       rx: f(r),
       ry: f(r * open),
     },
-    opening: { rx: f(a * opening[3]), ry: f(a * shut) },
+    // The opening as the field is given it: the radius across the lines and the half width along them.
+    opening: { rx: f(stones[0][2] * stones[0][3]), ry: f(stones[0][2]) },
     dots: stones.slice(1).map(([x, y, radius]) => ({ cx: f(x), cy: f(y), r: f(radius * 0.5) })),
     pointer: pointer ? { cx: f(pointer[0]), cy: f(pointer[1]), r: f(pointer[2] * 0.5) } : null,
   };

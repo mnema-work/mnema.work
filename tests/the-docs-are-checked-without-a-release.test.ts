@@ -174,8 +174,8 @@ describe('a checkout from before the brand', () => {
   });
 
   /** The product without the brand's eye: for a release, tagged and with a built binary in place, as a release checkout is. */
-  const withoutTheBrand = (): string => {
-    const dir = anUnreleasedProduct((d) => rmSync(join(d, '.github/the-brand/eye.mjs')));
+  const withoutTheBrand = (file: string): string => {
+    const dir = anUnreleasedProduct((d) => rmSync(join(d, '.github/the-brand', file)));
     const version = JSON.parse(readFileSync(join(dir, 'packages/code/package.json'), 'utf8')).version as string;
     git(dir, 'tag', '-f', `v${version}`);
     mkdirSync(join(dir, 'packages/code/dist'), { recursive: true });
@@ -190,12 +190,14 @@ describe('a checkout from before the brand', () => {
       env: { PATH: process.env.PATH ?? '', HOME: scratch },
     });
 
-  for (const flags of [[], ['--check']]) {
-    it(`is refused by the real build${flags.length ? ' of the check' : ' of a release'}, naming the file it lacks, with nothing written`, () => {
-      const built = build(withoutTheBrand(), ...flags);
-      expect(built.status, built.stdout + built.stderr).not.toBe(0);
-      expect(built.stderr).toMatch(/has no \.github\/the-brand\/eye\.mjs: the site is built from a release that carries the brand/);
-      expect(readFileSync(join(site, SENTINEL), 'utf8'), 'the refusal came after something was written').toBe('kept\n');
-    }, 120_000);
+  for (const file of ['eye.mjs', 'palette.mjs']) {
+    for (const flags of [[], ['--check']]) {
+      it(`is refused by the real build${flags.length ? ' of the check' : ' of a release'} without ${file}, naming the file it lacks, with nothing written`, () => {
+        const built = build(withoutTheBrand(file), ...flags);
+        expect(built.status, built.stdout + built.stderr).not.toBe(0);
+        expect(built.stderr).toContain(`has no .github/the-brand/${file}: the site is built from a release that carries the brand`);
+        expect(readFileSync(join(site, SENTINEL), 'utf8'), 'the refusal came after something was written').toBe('kept\n');
+      }, 120_000);
+    }
   }
 });

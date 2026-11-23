@@ -7,7 +7,7 @@
  * It is measured on the built page, without a browser: the eye and the word are the two children of one flex row that centres
  * them (the rule is read from the built style, and nothing moves either child off it), so their boxes share a centre; what is
  * measured is where the ink of the word lies inside its own box, by rasterizing the word the page carries and finding its
- * first and last rows. The distance from the box's centre to the ink's centre, at the size the page draws it, is held to half a pixel.
+ * first and last rows. The distance from the box's centre to the ink's centre, at the size the page draws it, is held to a fifth of a pixel (the brand's own box, centred as it is, is 0.4 px off).
  *
  * WHAT IT DOES NOT CHECK: how a browser rounds a box to a pixel (a reviewer opens the page).
  */
@@ -53,7 +53,7 @@ when('the lockup of the eye and the word', () => {
   const docs = (): string => readText(join(DIST, 'docs/install/index.html'));
   const home = (): string => readText(join(DIST, 'index.html'));
 
-  it('has the word’s ink within half a pixel of the middle of its box, in the bar, the foot and the docs’ header', async () => {
+  it('has the word’s ink within a fifth of a pixel of the middle of its box, in the bar, the foot and the docs’ header', async () => {
     const words = [
       ['the bar', /<a class="brand" href="#top" aria-label="mnema, top of the page"><svg[\s\S]*?<\/svg>\s*(<svg[\s\S]*?<\/svg>)\s*<\/a>/.exec(home())?.[1]],
       ['the docs header', /<span class="word">(<svg[\s\S]*?<\/svg>)\s*<\/span>/.exec(docs())?.[1]],
@@ -61,10 +61,10 @@ when('the lockup of the eye and the word', () => {
     for (const [where, svg] of words) {
       expect(svg, `${where}: the word is drawn`).toBeDefined();
       const offset = await offsetOf(svg as string);
-      expect(Math.abs(offset), `${where}: the word's ink is ${offset.toFixed(2)} px from the middle of its box`).toBeLessThanOrEqual(0.5);
+      expect(Math.abs(offset), `${where}: the word's ink is ${offset.toFixed(2)} px from the middle of its box`).toBeLessThanOrEqual(0.2);
     }
     const foot = /<footer\b[\s\S]*?<a class="brand"[^>]*>(?:<svg[\s\S]*?<\/svg>)\s*(<svg[\s\S]*?<\/svg>)\s*<\/a>/.exec(home())?.[1];
-    expect(Math.abs(await offsetOf(foot as string)), 'the foot').toBeLessThanOrEqual(0.5);
+    expect(Math.abs(await offsetOf(foot as string)), 'the foot').toBeLessThanOrEqual(0.2);
   });
 
   it('puts the eye and the word on one row that centres them, and moves neither off it', () => {

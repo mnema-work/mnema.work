@@ -1,22 +1,18 @@
 ---
-import Icon from './Icon.astro';
-import Scene from './Scene.astro';
-interface Props { install: string }
-const { install } = Astro.props;
+// The hero: the field of lines with the eye in it, drawn at rest by the build (`src/generated/hero.svg`) and moved by the
+// page's script where the reader has not asked for less motion.
+import field from '../../generated/hero.svg?raw';
 ---
 <section id="top" class="hero">
-  <div class="hero-glow" aria-hidden="true"></div>
-  <div class="wrap">
+  <Fragment set:html={field} />
+  <div class="txt">
+    <p class="mono">mnema · open source · Apache-2.0</p>
     <h1>The decision record for AI coding agents.</h1>
     <p class="sub">mnema keeps the why behind your agents’ work, signed, in your repository, and hands it to every next session.</p>
-    <div class="acts">
-      <a class="btn primary" href="/docs/first-record/">Get started <Icon name="arrow" /></a>
-      <a class="btn" href="/docs/">Read the docs</a>
+    <div class="row">
+      <a class="btn" href="/docs/first-record/">Get started</a>
+      <a class="pill" href="/docs/">Read the docs →</a>
     </div>
-    <div class="install mono">
-      <span><span class="prompt">$</span> <span id="install-line">{install}</span></span>
-      <button type="button" data-copy={install} data-from="install-line" aria-label="Copy the install command">copy</button>
-    </div>
-    <Scene />
   </div>
+  <button type="button" class="motion" aria-pressed="false" aria-label="Pause the motion of the page">Pause motion</button>
 </section>

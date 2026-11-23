@@ -1,0 +1,31 @@
+---
+// The quick start: the commands of the README, which open with the brand's eye.
+import eye from '../../generated/eye-start.svg?raw';
+interface Props { install: { binary: string; found: string; plugin: string[]; extension: string } }
+const { install } = Astro.props;
+---
+<section id="start" class="install">
+  <div class="wrap cols">
+    <div>
+      <div class="qhead">
+        <div class="qeye" aria-hidden="true"><Fragment set:html={eye} /></div>
+        <div>
+          <p class="mono">Quick start</p>
+          <h2>Start a record in a minute.</h2>
+        </div>
+      </div>
+      <p class="lead">Free and open source under Apache-2.0. The record lives in <code>.mnema/</code>, committed with your code. No account, no server.</p>
+      <div class="acts">
+        <a class="btn" href="/docs/first-record/">Get started</a>
+        <a class="pill" href="/docs/">Read the docs →</a>
+      </div>
+    </div>
+    <div class="code mono" tabindex="0" role="region" aria-label="The commands that start a record">
+      <div class="line"><span class="p">$</span> <span id="install-line">{install.binary}</span> <button type="button" data-copy={install.binary} data-from="install-line" aria-label="Copy the install command">copy</button></div>
+      <div><span class="p">$</span> {install.found}</div>
+      <div class="c"># hand the record to your agent, in Claude Code:</div>
+      {install.plugin.map((command) => <div><span class="p">$</span> {command}</div>)}
+      <div class="c"># in VS Code: {install.extension}</div>
+    </div>
+  </div>
+</section>

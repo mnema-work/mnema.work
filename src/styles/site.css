@@ -17,27 +17,52 @@
   text-decoration: underline;
 }
 
-/* The same two typefaces as the home page: the mono for headings, the sans for the text. No colour is written here. */
+/* The same two typefaces as the home page: Archivo, wide and light, for the headings and the text, and IBM Plex Mono for the
+   code. No colour is written here. */
 :root {
-  --sl-font: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
-  --sl-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --sl-font: 'Archivo Variable', ui-sans-serif, system-ui, sans-serif;
+  --sl-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 }
 
-h1, h2, h3, h4, .site-title {
-  font-family: var(--sl-font-mono);
-  letter-spacing: -0.02em;
+h1, h2, h3, h4 {
+  font-stretch: 112%;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
-/* The head: the mark beside the name, at the height of a line of the bar. */
+/* The head: the eye and the word beside it (`src/components/SiteTitle.astro`), and the descriptor, which a narrow screen hides. */
 .site-title {
-  font-weight: 800;
+  gap: 0.7rem;
+  color: var(--sl-color-white);
 }
 
-.site-title img {
-  height: 1.6rem;
+.site-title .mark svg {
+  display: block;
   width: auto;
+  height: 1.9rem;
 }
 
+.site-title .word svg {
+  display: block;
+  width: auto;
+  height: 1rem;
+}
+
+.descriptor {
+  display: none;
+  margin-inline-start: 0.9rem;
+  padding-inline-start: 0.9rem;
+  border-inline-start: 1px solid var(--sl-color-hairline);
+  color: var(--sl-color-gray-3);
+  font-size: var(--sl-text-xs);
+  white-space: nowrap;
+}
+
+@media (min-width: 72rem) {
+  .descriptor {
+    display: block;
+  }
+}
 
 /* The header: the links of the docs beside GitHub (`src/components/SocialIcons.astro`). Below 50rem the header's right group is
    hidden by Starlight and the sidebar, behind the menu button, is the way around. */

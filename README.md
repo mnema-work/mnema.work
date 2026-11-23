@@ -26,33 +26,42 @@ directory that is not exactly at a release tag, that has a tracked file changed 
 To check the docs of any commit of the product, for example the head of a pull request, add `--check`:
 `node build/build.mjs --from <checkout> --check`. The checkout may be at any commit and need not be built (a tracked file
 changed is still refused). It builds the pages of `docs/` with the same links, table of contents and Starlight build as a
-release, and stops on what a release build stops on for them, with the eye of the brand in the header (the brand's eye and
-palette load without the product installed); it does not write `/record/`, `og.png`, `llms.txt`, `robots.txt` or the
-favicon, which need a release and the product built, and what it builds is for throwing away.
+release, and stops on what a release build stops on for them, with the eye of the brand in the header (the brand's eye,
+palette, word and field load without the product installed); it does not write `/record/`, `og.png`, `llms.txt`,
+`robots.txt`, the favicon or the icons, which need a release and the product built, and what it builds is for throwing
+away.
 
 The site is built from a release that carries the brand (`.github/the-brand/` of the product). A checkout without
-`eye.mjs` or `palette.mjs`, release build or `--check` alike, is refused before anything is written, with a sentence naming
-the file it lacks: there is no older drawing to fall back to.
+`eye.mjs`, `palette.mjs`, `wordmark.mjs` or `field.mjs`, release build or `--check` alike, is refused before anything is
+written, with a sentence naming the file it lacks: there is no older drawing to fall back to.
 
 ## What the build does
 
 1. Writes the pages of `docs/` (folders included: `docs/<folder>/<page>.md` is at `/docs/<folder>/<page>/`, and a README item
    that points at an index page in a folder is a group of the sidebar), the table of contents at `/docs/` and the 404 from the checkout (`build/the-build.mjs`,
-   `build/the-pages.mjs`), with the links rewritten to where they land, and the facts the home page shows (the measured
-   counts, the hosts and their rungs, the install commands, the verdict of the record), read from the same checkout
-   (`build/the-home.mjs`). The home page itself, `/`, is `src/pages/index.astro` and the components of `src/components/home/`: its words are
-   the page's, and a test holds every number, host, command, output and the sentence of its refusal to the file or the
-   binary it is read from. A host is shown by a logo only where `hosts/SOURCES.md` lists the vendor's own file, its source
-   and its hash; every other host is shown by its name.
-2. Lets Astro build the home page and Starlight the docs, both in the palette of `build/the-palette.mjs` and set in two
-   typefaces served from this site (`@fontsource`, Open Font Licence: no page asks another host for anything), with its
-   anonymous usage data off.
+   `build/the-pages.mjs`), with the links rewritten to where they land and, on each page, its structured data (a `TechArticle`
+   and the trail to `/docs/`); and the facts the home page shows (the hosts, the contributors, the install commands, the
+   verdict of the record), read from the same checkout (`build/the-home.mjs`). The home page itself, `/`, is
+   `src/pages/index.astro` and the components of `src/components/home/`: its words are the page's, and a test holds every
+   host, contributor, command, output and the sentence of its refusal to the file or the binary it is read from. A host is
+   shown by a logo only where `hosts/SOURCES.md` lists the vendor's own file, its source and its hash; every other host is
+   shown by its name.
+2. Lets Astro build the home page and Starlight the docs, both in the colours of `build/the-palette.mjs` (the brand's own
+   palette, read from the checkout, and a few greys and the red of a failure that the site adds) and set in two typefaces
+   served from this site (Archivo and IBM Plex Mono from `@fontsource`, Open Font Licence: no page asks another host for
+   anything), with its anonymous usage data off.
 3. Writes `/record/` with the binary built from the same checkout, and stops when the record does not verify. The binary
    is the one of that tag, built from its sources, and not a version taken from npm: the site is made of one tag, and a
    tag does not depend on when a package reaches a registry.
-4. Adds `og.png`, `llms.txt`, `robots.txt`, the favicon (the very SVG the product's own
-   `/record/` page wears, and its 64-pixel PNG) and the `CNAME`. The eye beside the name, in the docs' header and on the home
-   page, is the brand's eye at rest, drawn by `build/the-mark.mjs` from the product's `.github/the-brand/` and never typed here.
+4. Adds `og.png` (the brand's field, the eye at rest, the word and the README's pitch, the words drawn as outlines), `llms.txt`,
+   `robots.txt`, the favicon (the very SVG the product's own `/record/` page wears, its 64-pixel PNG, a 180-pixel touch icon
+   and the 512-pixel logo of the structured data) and the `CNAME`.
+
+Every picture is the brand's, drawn by `build/the-mark.mjs` from the product's `.github/the-brand/` and never typed here: the
+eye (still beside the name in the docs' header, in its charcoal seal on the light theme, and blinking on the home page's
+bar, ring of hosts and quick start, where a media query inside the picture swaps it for the eye at rest under
+`prefers-reduced-motion`), the word, the four steps on a line of the field, the ring of hosts, and the hero's field, which
+the page's script moves (the eye follows the pointer and blinks) only where the reader has not asked for less motion.
 
 The two addresses the build is made around are in `build/the-site.mjs` and nowhere else.
 

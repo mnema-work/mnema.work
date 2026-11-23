@@ -744,6 +744,26 @@ when('the hero of the home page', () => {
     expect(readText(join(SITE, 'build/the-mark.mjs')), 'no tick is typed in the site').not.toMatch(/class="tick" d="M-?\d/);
   });
 
+  it('sits the top bar on a plain band of the ground, with a fade under it, so no line of the field crosses the links or the lockup, whatever the frame or the motion', () => {
+    const rules = rulesOf(readText(join(SITE, 'src/styles/home.css')));
+    const bar = rules.find((r) => r.selector === '.home .bar')?.body ?? '';
+    expect(bar, 'the bar is fixed at the top, over the hero').toMatch(/position:\s*fixed/);
+    expect(bar, 'the bar is above the field').toMatch(/z-index:\s*([1-9]\d*)/);
+    expect(bar, 'the band is the ground, plain from the top to the foot of the bar').toMatch(/(?<![-\w])background:\s*var\(--ground\)\s*;/);
+    expect(bar, 'and not a gradient into the field').not.toMatch(/gradient|transparent/);
+    const fade = rules.find((r) => r.selector === '.home .bar::after')?.body ?? '';
+    expect(fade, 'a fade of the ground starts at the foot of the bar').toMatch(/top:\s*100%/);
+    expect(fade).toMatch(/linear-gradient\(var\(--ground\),\s*transparent\)/);
+    // The same rules are in the built style, and nothing under reduced motion takes the band away.
+    const built = readdirSync(join(DIST, '_astro')).filter((f) => f.endsWith('.css')).map((f) => readText(join(DIST, '_astro', f))).join('\n').replace(/\s+/g, '');
+    expect(built).toMatch(/\.home\.bar\{[^}]*background:var\(--ground\)/);
+    expect(built).toMatch(/\.home\.bar:after\{[^}]*top:100%/);
+    const reduced = /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n\}/.exec(readText(join(SITE, 'src/styles/home.css')))?.[1] ?? '';
+    expect(reduced, 'reduced motion does not touch the bar').not.toMatch(/\.bar/);
+    // The bar is over the field in the page: the hero's picture comes after it in no stacking context above it.
+    expect(rules.find((r) => r.selector === '.home .hero svg#field')?.body ?? '', 'the field has no z-index of its own').not.toMatch(/z-index/);
+  });
+
   it('keeps the pill that pauses the motion clear of the buttons on a phone: the hero holds room for it below them', () => {
     const css = readText(join(SITE, 'src/styles/home.css'));
     const motion = /\.home \.motion \{([^}]*)\}/.exec(css)?.[1] ?? '';

@@ -76,11 +76,23 @@
 }
 
 /* The bar: the eye and the word, the links, and the install line. */
+/* A plain band of the ground behind the menu, and a short fade below it: no line of the field crosses the links or the lockup in any frame. */
 .home .bar {
   position: fixed;
   inset: 0 0 auto 0;
   z-index: 5;
+  background: var(--ground);
+}
+
+.home .bar::after {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 28px;
   background: linear-gradient(var(--ground), transparent);
+  content: '';
+  pointer-events: none;
 }
 
 .home .bar-in {

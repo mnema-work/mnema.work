@@ -48,7 +48,7 @@ export default defineConfig({
       ],
       components: { Footer: './src/components/Footer.astro', SocialIcons: './src/components/SocialIcons.astro', ThemeProvider: './src/components/ThemeProvider.astro', ThemeSelect: './src/components/ThemeSelect.astro' },
       head: [
-        // The adaptive SVG is the icon; the PNG is only for browsers that draw no SVG in a tab.
+        // The favicon is the eye of the product's record page, one for the domain and not adaptive; it is the icon, and the PNG is only for browsers that draw no SVG in a tab.
         { tag: 'link', attrs: { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml', sizes: 'any' } },
         { tag: 'link', attrs: { rel: 'icon', href: '/favicon.png', type: 'image/png', sizes: '64x64' } },
         { tag: 'meta', attrs: { property: 'og:image', content: card } },

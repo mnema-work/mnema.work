@@ -845,9 +845,9 @@ describe('what this repository tracks', () => {
   const files = trackedHere().filter(
     (f) => !f.startsWith('tests/') && !f.startsWith('.github/') && !/(^|\/)package-lock\.json$|^LICENSE$|^NOTICE$/.test(f),
   );
-  // The favicon is the one picture the build assembles: from the letter's cells and the paints of the product's own files, so
+  // The mark is the one picture the build assembles: from the eye and the palette of the product's own files, so
   // it may hold the markup of an SVG and nothing that is a colour or a shape typed here.
-  const THE_FAVICON = 'build/the-favicon.mjs';
+  const THE_MARK = 'build/the-mark.mjs';
   // The palette is the one file that owns the colours of the site; every other file reads them from it.
   const THE_PALETTE = 'build/the-palette.mjs';
   // The icons of the home page are drawn in one file, and it may hold the markup of an SVG and no colour: they are
@@ -868,13 +868,13 @@ describe('what this repository tracks', () => {
     const colourOnly = /#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\(|data:image/;
     for (const file of files) {
       const text = readFileSync(join(SITE, file), 'utf8');
-      const swept = file === THE_FAVICON || file === THE_ICONS ? colourOnly : file === THE_PALETTE || isAVendorLogo(file) ? /(?!)/ : colour;
+      const swept = file === THE_MARK || file === THE_ICONS ? colourOnly : file === THE_PALETTE || isAVendorLogo(file) ? /(?!)/ : colour;
       expect(
         swept.test(text),
         `${file} writes a colour or a picture`,
       ).toBe(false);
     }
-    expect(files, 'the favicon generator is among the files swept').toContain(THE_FAVICON);
+    expect(files, 'the mark generator is among the files swept').toContain(THE_MARK);
     expect(files, 'the icons are among the files swept').toContain(THE_ICONS);
     expect(files.filter(isAVendorLogo).length, 'the vendors’ logos are among the files tracked').toBeGreaterThan(0);
   });
@@ -916,4 +916,19 @@ describe('/record/ is written from a record that verifies, or not at all', () =>
     );
     expect(existsSync(join(out, 'refused', 'index.html'))).toBe(false);
   }, 60_000);
+});
+
+describe('the brand is read from its own module, and from no older export', () => {
+  // The marks come from `.github/the-brand/`. The editor extension's mark and the front page's accent are the product's older
+  // drawing of the letter, and the site draws none of it.
+  const older = [/vscode\/build\/mark\.mjs/, /the-front-page\/accent\.mjs/];
+  const read = (file: string): string => readFileSync(join(SITE, file), 'utf8');
+  const swept = trackedHere().filter((f) => /^(build|src)\/.*\.(mjs|ts|astro)$/.test(f) || f === 'astro.config.mjs');
+
+  it('imports neither the editor extension\'s mark nor the front page\'s accent, in any file of build/, src/ or the configuration', () => {
+    expect(swept, 'the build files are among those swept').toContain('build/the-mark.mjs');
+    for (const file of swept) {
+      for (const pattern of older) expect(pattern.test(read(file)), `${file} reads an older export of the product (${pattern})`).toBe(false);
+    }
+  });
 });

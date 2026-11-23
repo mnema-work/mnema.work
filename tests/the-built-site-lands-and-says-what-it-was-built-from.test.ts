@@ -50,7 +50,7 @@ import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { theHeadOfTheRecord } from '../build/the-build.mjs';
 import { copyOf, recordBackLink, themeOf } from '../build/the-pages.mjs';
-import { faviconSvg, markSvg, theSources } from '../build/the-favicon.mjs';
+import { markSvg, theBrand } from '../build/the-mark.mjs';
 import { SITE_URL } from '../build/the-site.mjs';
 import { runInAVm } from './support/a-page-in-a-vm.js';
 import {
@@ -382,26 +382,21 @@ when('the built site', () => {
         `${file} is not the picture of docs/assets`,
       ).toBe(true);
     }
-    const sources = await theSources(ROOT);
-    const { ACCENT: DRAWN } = sources as { ACCENT: { dark: string; light: string } };
+    // Read off the product's own file, by this test's own decoding: the favicon is the one the record page wears.
+    const { FAVICON } = (await fromTheProduct('packages/code/dist/site/the-mark.js')) as { FAVICON: string };
+    const wears = Buffer.from(FAVICON.split(',')[1] ?? '', 'base64').toString('utf8');
     const svg = readText(join(DIST, 'favicon.svg'));
-    expect(svg, 'the favicon is not what the build draws from the product').toBe(faviconSvg(sources));
-    // Read off the product's own files, not off the generator: the letter's cells, and the accent of each theme.
-    const cells = sources.letterCells(sources.blocks).length;
-    expect(
-      [...svg.matchAll(/z/g)].length / 2,
-      'the favicon holds the cells of the letter, twice (the letter and its shadow)',
-    ).toBe(cells);
-    expect(svg.match(/\.letter\{fill:(#[0-9a-f]{6})/)?.[1], 'the light accent').toBe(DRAWN.light);
-    expect(svg.match(/@media \(prefers-color-scheme:dark\)\{\.shadow\{fill:#[0-9a-f]{6}\}\.letter\{fill:(#[0-9a-f]{6})/)?.[1], 'the dark accent').toBe(DRAWN.dark);
-    expect(svg, 'a bare letter: no tile around it').not.toContain('<rect');
+    expect(wears, 'the product page wears an SVG').toContain('<svg');
+    expect(svg, "the favicon is not the one the product's record page wears, byte for byte").toBe(wears);
+    expect(svg, 'the favicon does not change with the scheme of the tab').not.toContain('prefers-color-scheme');
     const png = readFileSync(join(DIST, 'favicon.png'));
     expect(png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true);
     expect(png.readUInt32BE(16), 'width').toBe(64);
   });
 
-  it('links the adaptive SVG as the icon of every page, ahead of the PNG fallback, and that SVG is the generated file', async () => {
-    const generated = faviconSvg(await theSources(ROOT));
+  it('links the SVG as the icon of every page, ahead of the PNG fallback, and that SVG is the product\'s favicon', async () => {
+    const { FAVICON } = (await fromTheProduct('packages/code/dist/site/the-mark.js')) as { FAVICON: string };
+    const generated = Buffer.from(FAVICON.split(',')[1] ?? '', 'base64').toString('utf8');
     // /record/ is the page the binary writes, and it declares no icon.
     const own = pages.filter((p) => p !== 'record/index.html');
     expect(own.length, 'the pages swept').toBeGreaterThan(10);
@@ -412,7 +407,7 @@ when('the built site', () => {
       expect(svg, `${page}: the SVG is not linked as an icon`).toBeGreaterThanOrEqual(0);
       expect(png, `${page}: the PNG fallback is not linked`).toBeGreaterThan(svg);
     }
-    expect(readText(join(DIST, 'favicon.svg')), 'the linked SVG is the generated one').toBe(generated);
+    expect(readText(join(DIST, 'favicon.svg')), 'the linked SVG is the product\'s').toBe(generated);
   });
 
   it('carries the calculated theme in a rule of no layer, so Starlight does not take it back', async () => {
@@ -455,20 +450,22 @@ when('the built site', () => {
   });
 
   it('shows on the page of what it proves the recording of a changed word, from the GIF the site carries', () => {
+    // The recording is the one the page's own source shows: its name is read there, not kept here.
+    const source = readText(join(ROOT, 'docs/what-it-proves.md'));
+    const named = /\.\.\/recordings\/([\w.-]+\.gif)/.exec(source)?.[1] ?? '';
+    expect(named, 'the source of the page shows a recording').not.toBe('');
     const page = html('docs/what-it-proves/index.html');
-    const src = /<img\b[^>]*src="([^"]*recordings\/a-tamper-caught\.gif)"/.exec(page)?.[1] ?? '';
+    const src = new RegExp(`<img\\b[^>]*src="([^"]*recordings/${named.replace(/\./g, '\\.')})"`).exec(page)?.[1] ?? '';
     expect(src, 'the page shows the recording').not.toBe('');
     expect(src, "a path of the site, not GitHub's page for the file").not.toMatch(/^https?:/);
     expect(
-      readFileSync(join(DIST, 'recordings/a-tamper-caught.gif')).equals(
-        readFileSync(join(ROOT, 'recordings/a-tamper-caught.gif')),
-      ),
+      readFileSync(join(DIST, 'recordings', named)).equals(readFileSync(join(ROOT, 'recordings', named))),
       "the site's GIF is the repository's",
     ).toBe(true);
   });
 
   it('puts in the head of every page of docs/ the mark, linked to the home page, and the name once', async () => {
-    const sources = await theSources(ROOT);
+    const brand = await theBrand(ROOT);
     for (const page of ['404.html', 'docs/install/index.html']) {
       const title = /<a href="([^"]*)" class="site-title[^>]*>([\s\S]*?)<\/a>/.exec(html(page));
       expect(title?.[1], `${page}: the head links back to the home page`).toBe('/');
@@ -480,9 +477,10 @@ when('the built site', () => {
         expect(alt?.[1] ?? (alt ? '' : '?'), `${page}: the name is not said twice`).toBe('');
         const src = /\ssrc="([^"]*)"/.exec(img)?.[1] ?? '';
         expect(src, `${page}: the ${theme} mark`).toContain(`mark-${theme}.`);
-        expect(readText(join(DIST, src.slice(BASE.length))), `${page}: the ${theme} mark is the favicon's letter`).toBe(
-          markSvg(sources, theme, 28),
-        );
+        const drawn = readText(join(DIST, src.slice(BASE.length)));
+        expect(drawn, `${page}: the ${theme} mark is the brand's eye`).toBe(markSvg(brand, theme, 28));
+        expect(drawn, `${page}: the ${theme} mark is still`).not.toMatch(/<animate|<set\b|animation/);
+        expect(drawn, `${page}: the ${theme} mark has the iris`).toContain(`fill="${brand.PALETTE.sulphur}"`);
       }
       expect(textOf(title?.[2] ?? ''), `${page}: the name`).toBe('mnema');
     }

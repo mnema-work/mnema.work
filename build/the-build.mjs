@@ -25,7 +25,7 @@ import {
 } from './the-pages.mjs';
 import { blinkingMarkSvg, CARD_PNG, cardSvg, faviconPng, faviconSvg, fieldSource, FIELD_COPY, heroSvg, markSvg, ringOf, stepsSvg, theBrand, theOutline, wordmarkSvg } from './the-mark.mjs';
 import { contributorsOf, hostsOf, installOf, verdictLinesOf } from './the-home.mjs';
-import { frameOf } from './the-hero-field.mjs';
+import { BAR_PHASE_S, frameOf } from './the-hero-field.mjs';
 import { HOSTS_DIR, ownersOf, withLogos } from './the-hosts.mjs';
 import { paletteCss, sitePalette, themeColours } from './the-palette.mjs';
 import { releaseDateOf, tagOf } from './the-product.mjs';
@@ -227,7 +227,7 @@ export async function prepare({ root, site = SITE, check = false }) {
   writeFileSync(into('src/generated/eye-foot.svg'), markSvg(brand, 'dark', 28, 'mark-eye-foot'));
   // The home page's: the eye that blinks (the bar's, the ring's and the quick start's, each at its own point of the cycle),
   // the word, and the sizes they are drawn at.
-  writeFileSync(into('src/generated/eye-bar.svg'), blinkingMarkSvg(brand, { id: 'eye-bar', begin: -6.1 }, 30));
+  writeFileSync(into('src/generated/eye-bar.svg'), blinkingMarkSvg(brand, { id: 'eye-bar', begin: -BAR_PHASE_S }, 30));
   writeFileSync(into('src/generated/eye-ring.svg'), blinkingMarkSvg(brand, { id: 'eye-ring', begin: -3.4 }, 128));
   writeFileSync(into('src/generated/eye-start.svg'), blinkingMarkSvg(brand, { id: 'eye-start', begin: -0.8 }, 72));
   writeFileSync(into('src/generated/word.svg'), wordmarkSvg(brand, 15));

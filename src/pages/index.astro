@@ -82,7 +82,7 @@ const facts = {
 
     <script>
       import { line, smooth, relative, f } from '../generated/field.mjs';
-      import { frameOf, opennessAt } from '../../build/the-hero-field.mjs';
+      import { BAR_PHASE_S, frameOf, opennessAt } from '../../build/the-hero-field.mjs';
 
       // The copy button: the clipboard API inside the click, and, where the browser refuses it, the text selected so a
       // keystroke finishes the job.
@@ -140,7 +140,7 @@ const facts = {
         };
         const draw = (now: number) => {
           const t = now - start;
-          const frame = frameOf(brand, { W, H, t, open: opennessAt(t), pointer });
+          const frame = frameOf(brand, { W, H, t, open: opennessAt(t + BAR_PHASE_S * 1000), pointer });
           lines.setAttribute('d', frame.d);
           for (const [name, value] of Object.entries(frame.iris)) iris.setAttribute(name, value as string);
           frame.dots.forEach((dot: { cx: string; cy: string; r: string }, i: number) => {

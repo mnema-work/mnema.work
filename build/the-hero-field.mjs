@@ -7,6 +7,12 @@
 /** The length of the cycle of the brand's eye, in milliseconds. */
 export const CYCLE_MS = 9000;
 
+/**
+ * Where in the cycle the eye of the home page's bar is when the page opens, in seconds: its SMIL begins at minus this (the build
+ * draws it with `begin: -BAR_PHASE_S`), and the hero's clock starts at the same phase, so the two blink together.
+ */
+export const BAR_PHASE_S = 6.1;
+
 /** How far open the brand's lids are when shut: its `ry` goes to 0.4 of the 15.5 an open iris has. */
 const SHUT = 0.4 / 15.5;
 
@@ -65,16 +71,21 @@ const IRIS = 0.43;
  * rest, where the points do not drift); `open` how open the lids are; `pointer` is `[x, y, radius]` or null; `steps` is how
  * many segments a line has (the frame the build writes has fewer than the one the script draws, to weigh less). The lines are
  * written as the brand's pictures write them, compact (`relative`).
- * @returns {{ d: string, iris: { cx: string, cy: string, rx: string, ry: string }, dots: { cx: string, cy: string, r: string }[], pointer: { cx: string, cy: string, r: string } | null }}
+ * @returns {{ d: string, iris: { cx: string, cy: string, rx: string, ry: string }, opening: { rx: string, ry: string }, dots: { cx: string, cy: string, r: string }[], pointer: { cx: string, cy: string, r: string } | null }}
  */
 export function frameOf(field, { W, H, t = 0, open = 1, pointer = null, drift = true, steps = Math.round(W / 16) }) {
   const { line, smooth, relative, f } = field;
   const seconds = t / 1000;
+  // The eye closes as the brand's does: its width stays and its height goes to the slit the lids leave. The opening is a
+  // fixed point of the field with a radius `a` and a stretch `k` along the lines, so a closing of `open` is a radius of
+  // `a * open` and a stretch of `k / open`, which keeps `a * k`, its half width.
+  const shut = Math.max(open, 0.01);
   const stones = stonesOf(W).map(([x, y, a, k, phase], i) => {
     const dx = drift ? Math.sin(seconds * 0.31 + phase) * 18 : 0;
     const dy = drift ? Math.cos(seconds * 0.23 + phase) * 10 : 0;
-    return [x * W + dx, y * H + dy, i === 0 ? a * Math.max(open, 0.05) : a, k];
+    return i === 0 ? [x * W + dx, y * H + dy, a * shut, k / shut] : [x * W + dx, y * H + dy, a, k];
   });
+  const opening = stonesOf(W)[0];
   const all = pointer ? [...stones, pointer] : stones;
   const pitch = W < 700 ? 28 : 22;
   const eyeY = stones[0][1];
@@ -82,7 +93,8 @@ export function frameOf(field, { W, H, t = 0, open = 1, pointer = null, drift = 
   const first = eyeY + pitch / 2 - Math.ceil((eyeY + pitch) / pitch) * pitch;
   let d = '';
   for (let c = first; c < H + pitch; c += pitch) d += relative(smooth(line(c, all, -20, W + 20, steps)));
-  const [ex, ey, a] = stones[0];
+  const [ex, ey] = stones[0];
+  const a = opening[2];
   let lx = 0;
   let ly = 0;
   if (pointer) {
@@ -99,12 +111,14 @@ export function frameOf(field, { W, H, t = 0, open = 1, pointer = null, drift = 
   const r = a * IRIS;
   return {
     d,
+    // The iris keeps its width and closes its height with the lids, as the brand's eye's does (its `ry` goes to 0.4 of 15.5).
     iris: {
       cx: f(ex + lx * a * 0.3),
       cy: f(ey + ly * a * 0.22 * open),
       rx: f(r),
-      ry: f(Math.max(0.5, r * open)),
+      ry: f(r * open),
     },
+    opening: { rx: f(a * opening[3]), ry: f(a * shut) },
     dots: stones.slice(1).map(([x, y, radius]) => ({ cx: f(x), cy: f(y), r: f(radius * 0.5) })),
     pointer: pointer ? { cx: f(pointer[0]), cy: f(pointer[1]), r: f(pointer[2] * 0.5) } : null,
   };

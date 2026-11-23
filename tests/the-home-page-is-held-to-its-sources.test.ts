@@ -97,16 +97,20 @@ const scriptOfTheHome = (): string => {
 };
 
 /** The page's script run in a vm that has the little of a browser it asks for, and records what it listened to and how many frames it asked for. */
-function runTheScript(reduced: boolean): { listened: string[]; frames: number } {
+function runTheScript(reduced: boolean): { listened: string[]; frames: number; set: Record<string, Record<string, string>>; step: (now: number) => void } {
   const listened: string[] = [];
+  const set: Record<string, Record<string, string>> = {};
   let frames = 0;
+  let frame: ((now: number) => void) | undefined;
   const element = (name: string): any => ({
     name,
     dataset: {},
     addEventListener: (type: string) => listened.push(`${name}:${type}`),
-    setAttribute: () => undefined,
+    setAttribute: (attribute: string, value: string) => {
+      (set[name] ??= {})[attribute] = value;
+    },
     toggleAttribute: () => undefined,
-    querySelector: () => element('child'),
+    querySelector: (selector: string) => element(selector),
     querySelectorAll: () => [element('child')],
     getBoundingClientRect: () => ({ width: 1440, height: 900, left: 0, top: 0 }),
   });
@@ -125,8 +129,9 @@ function runTheScript(reduced: boolean): { listened: string[]; frames: number } 
     IntersectionObserver: class {
       observe(): void {}
     },
-    requestAnimationFrame: () => {
+    requestAnimationFrame: (callback: (now: number) => void) => {
       frames += 1;
+      frame = callback;
       return frames;
     },
     performance: { now: () => 0 },
@@ -135,7 +140,7 @@ function runTheScript(reduced: boolean): { listened: string[]; frames: number } 
     Object,
     String,
   });
-  return { listened, frames };
+  return { listened, frames, set, step: (now: number) => frame?.(now) };
 }
 
 when('the built home page', () => {
@@ -726,6 +731,45 @@ when('the hero of the home page', () => {
     expect(worst, 'the hero strays from the brand’s eye somewhere between its stops').toBeLessThan(0.02);
   });
 
+  it('closes as the brand’s eye does: the iris keeps its width and its height goes to the slit of the brand’s own 0.4 of 15.5, and the opening keeps its width as the lids meet', async () => {
+    const { frameOf, opennessAt, CYCLE_MS } = await import('../build/the-hero-field.mjs');
+    const field = await fromTheProduct('.github/the-brand/field.mjs');
+    const brand = { line: field.line, smooth: field.smooth, relative: field.relative, f: field.f };
+    const eye = /<svg[^>]*>(?:(?!<\/svg>)[\s\S])*<clipPath id="eye-bar">[\s\S]*?<\/svg>/.exec(page())?.[0] ?? '';
+    const ry = (/<animate attributeName="ry"[^>]*values="([^"]+)"/.exec(eye)?.[1] ?? '').split(';').map(Number);
+    const full = Number(/<ellipse cx="0" cy="0" rx="([\d.]+)"/.exec(eye)?.[1]);
+    const slit = Math.min(...ry) / full;
+    expect(slit, 'the brand’s slit is 0.4 of 15.5').toBeCloseTo(0.4 / 15.5, 4);
+    // The cycle's own closure, found by the hero's openness, and the frame drawn there.
+    let at = 0;
+    for (let ms = 0; ms < CYCLE_MS; ms += 5) if (opennessAt(ms) < opennessAt(at)) at = ms;
+    const shut = frameOf(brand, { W: 1440, H: 900, t: 0, open: opennessAt(at), drift: false, steps: 8 });
+    const open = frameOf(brand, { W: 1440, H: 900, t: 0, open: 1, drift: false, steps: 8 });
+    expect(shut.iris.rx, 'the iris keeps its width at the closure').toBe(open.iris.rx);
+    expect(Number(shut.iris.ry) / Number(shut.iris.rx), 'and its height is the brand’s slit').toBeCloseTo(slit, 2);
+    expect(shut.opening.rx, 'the opening keeps its half width as the lids meet').toBe(open.opening.rx);
+    expect(Number(shut.opening.ry) / Number(open.opening.ry), 'and its height closes to the same slit').toBeCloseTo(slit, 2);
+    expect(shut.d, 'and the lines part round what is left of it').not.toBe(open.d);
+  });
+
+  it('blinks in phase with the eye of the bar: the bar’s SMIL begins at minus the phase the hero’s clock starts at, and at the bar’s closure the hero is shut', async () => {
+    const { BAR_PHASE_S, CYCLE_MS } = await import('../build/the-hero-field.mjs');
+    const eye = /<svg[^>]*>(?:(?!<\/svg>)[\s\S])*<clipPath id="eye-bar">[\s\S]*?<\/svg>/.exec(page())?.[0] ?? '';
+    const begin = Number(/<animate attributeName="ry"[^>]*begin="(-?[\d.]+)s"/.exec(eye)?.[1]);
+    expect(begin, 'the bar’s eye starts in the middle of its cycle').toBe(-BAR_PHASE_S);
+    // The page's script, one frame at the moment the bar's eye is at its first closure (0.83 of the cycle): the iris is a slit.
+    const closure = 0.83 * CYCLE_MS - BAR_PHASE_S * 1000;
+    expect(closure).toBeGreaterThan(0);
+    const run = runTheScript(false);
+    run.step(closure);
+    const iris = run.set['.field-iris'] ?? {};
+    expect(Number(iris.ry) / Number(iris.rx), 'the hero is shut when the bar’s eye is').toBeLessThan(0.05);
+    const early = runTheScript(false);
+    early.step(100);
+    const [rx, ryOpen] = [Number(early.set['.field-iris']?.rx), Number(early.set['.field-iris']?.ry)];
+    expect(ryOpen / rx, 'and open at the page’s start, as the bar’s eye is').toBeGreaterThan(0.9);
+  });
+
   it('draws its iris at 0.43 of the opening, the approved page’s, and not at the brand’s eye’s 0.74', async () => {
     const { stonesOf } = await import('../build/the-hero-field.mjs');
     const iris = /<ellipse class="field-iris" cx="[\d.]+" cy="[\d.]+" rx="([\d.]+)" ry="([\d.]+)"/.exec(page());
@@ -744,24 +788,62 @@ when('the hero of the home page', () => {
     expect(readText(join(SITE, 'build/the-mark.mjs')), 'no tick is typed in the site').not.toMatch(/class="tick" d="M-?\d/);
   });
 
-  it('sits the top bar on a plain band of the ground, with a fade under it, so no line of the field crosses the links or the lockup, whatever the frame or the motion', () => {
-    const rules = rulesOf(readText(join(SITE, 'src/styles/home.css')));
-    const bar = rules.find((r) => r.selector === '.home .bar')?.body ?? '';
-    expect(bar, 'the bar is fixed at the top, over the hero').toMatch(/position:\s*fixed/);
-    expect(bar, 'the bar is above the field').toMatch(/z-index:\s*([1-9]\d*)/);
-    expect(bar, 'the band is the ground, plain from the top to the foot of the bar').toMatch(/(?<![-\w])background:\s*var\(--ground\)\s*;/);
-    expect(bar, 'and not a gradient into the field').not.toMatch(/gradient|transparent/);
-    const fade = rules.find((r) => r.selector === '.home .bar::after')?.body ?? '';
+  /**
+   * Every declaration, in the order of the file, of every rule that can reach `kind`: the bar (the element `.bar`, whatever
+   * selector names it: its class, its tag, a universal selector) or the field (the hero's picture, by its id, its tag, the
+   * universal selector). A rule is read whatever the media query it sits in, and the last compound of a selector is what it reaches.
+   */
+  const reachingThe = (css: string, kind: 'bar' | 'field'): { selector: string; property: string; value: string }[] => {
+    const reaches = (part: string): boolean => {
+      const last = part.trim().split(/[\s>+~]+/).pop() ?? '';
+      const tag = kind === 'bar' ? /^(?:\.bar|header|header\.[\w-]+|\.bar\.[\w-]+|\*|:where\([^)]*\))$/ : /^(?:svg(?:#field|\.[\w-]+)?|#field|\*|\.hero>svg)$/;
+      return tag.test(last);
+    };
+    return rulesOf(css).flatMap((rule) =>
+      rule.selector.split(',').some(reaches)
+        ? rule.body.split(';').map((d) => d.trim()).filter(Boolean).map((d) => ({ selector: rule.selector, property: d.slice(0, d.indexOf(':')).trim(), value: d.slice(d.indexOf(':') + 1).trim() }))
+        : [],
+    );
+  };
+  const THAT_HIDES_OR_LIFTS = /^(?:background(?:-[a-z]+)?|opacity|visibility|display|z-index|filter|mix-blend-mode|mask(?:-[a-z]+)?|clip-path|-webkit-mask(?:-[a-z]+)?)$/;
+
+  it('sits the top bar on a plain band of the ground, opaque, above the field, with a fade under it, whatever rule comes after: every rule that reaches the bar or the field is read, in the source and in the built style', () => {
+    const homeStyles = readdirSync(join(DIST, '_astro')).filter((f) => f.endsWith('.css')).map((f) => readText(join(DIST, '_astro', f)));
+    const linked = [...readText(join(DIST, 'index.html')).matchAll(/<link rel="stylesheet" href="\/_astro\/([^"]+\.css)"/g)].map((m) => m[1] as string);
+    expect(linked.length, 'the page links its styles').toBeGreaterThan(0);
+    const builtOfThePage = linked.map((f) => readText(join(DIST, '_astro', f))).join('\n');
+    expect(homeStyles.length).toBeGreaterThan(0);
+    for (const [where, css] of [['the source', readText(join(SITE, 'src/styles/home.css'))], ['the built style', builtOfThePage]] as const) {
+      const bar = reachingThe(css, 'bar').filter((d) => THAT_HIDES_OR_LIFTS.test(d.property));
+      const field = reachingThe(css, 'field').filter((d) => d.property === 'z-index' || d.property === 'opacity' || d.property === 'visibility');
+      // One declaration of each of these properties on the bar, and none that takes a thing back: so no rule after it, in
+      // a media query or not, can make the band see through, dim it, hide it or put the field over it.
+      for (const property of new Set(bar.map((d) => d.property))) {
+        const same = bar.filter((d) => d.property === property);
+        expect(same.length, `${where}: more than one rule sets ${property} on the bar: ${same.map((d) => `${d.selector} { ${d.property}: ${d.value} }`).join('; ')}`).toBe(1);
+      }
+      // The outcome: the band is the ground, plain, at full opacity, and above whatever z-index the field has.
+      const last = (property: string): string | undefined => bar.filter((d) => d.property === property).pop()?.value;
+      expect(last('background'), `${where}: the band is the ground`).toMatch(/^var\(--ground\)$/);
+      expect(bar.filter((d) => /background|mask|filter|blend|clip/.test(d.property) && /gradient|transparent|url|none/.test(d.value)), `${where}: nothing makes the band see through`).toEqual([]);
+      expect(last('opacity') ?? '1', `${where}: the bar is at full opacity`).toBe('1');
+      expect(last('visibility') ?? 'visible', `${where}: the bar is seen`).toBe('visible');
+      expect(last('display') ?? 'block', `${where}: the bar is drawn`).not.toBe('none');
+      const lift = Number(last('z-index'));
+      const under = Math.max(0, ...field.filter((d) => d.property === 'z-index').map((d) => Number(d.value) || 0));
+      expect(lift, `${where}: the bar is above the field (z-index ${lift} against ${under})`).toBeGreaterThan(under);
+      expect(field.filter((d) => d.property !== 'z-index').map((d) => `${d.property}: ${d.value}`), `${where}: nothing dims or hides the field`).toEqual([]);
+    }
+    // The ground is the brand's charcoal, a plain hex with no alpha.
+    expect(PALETTE.ground, 'the ground is the brand’s charcoal').toBe(BRAND.charcoal);
+    expect(PALETTE.ground).toMatch(/^#[0-9a-f]{6}$/);
+    // And the bar is fixed at the top over the field, which is not a stacking context above it: the rule that makes the bar fixed is the one the guard read.
+    expect(reachingThe(readText(join(SITE, 'src/styles/home.css')), 'bar').find((d) => d.property === 'z-index')?.selector).toBe('.home .bar');
+    const fade = rulesOf(readText(join(SITE, 'src/styles/home.css'))).find((r) => r.selector === '.home .bar::after')?.body ?? '';
     expect(fade, 'a fade of the ground starts at the foot of the bar').toMatch(/top:\s*100%/);
     expect(fade).toMatch(/linear-gradient\(var\(--ground\),\s*transparent\)/);
-    // The same rules are in the built style, and nothing under reduced motion takes the band away.
-    const built = readdirSync(join(DIST, '_astro')).filter((f) => f.endsWith('.css')).map((f) => readText(join(DIST, '_astro', f))).join('\n').replace(/\s+/g, '');
-    expect(built).toMatch(/\.home\.bar\{[^}]*background:var\(--ground\)/);
-    expect(built).toMatch(/\.home\.bar:after\{[^}]*top:100%/);
     const reduced = /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n\}/.exec(readText(join(SITE, 'src/styles/home.css')))?.[1] ?? '';
     expect(reduced, 'reduced motion does not touch the bar').not.toMatch(/\.bar/);
-    // The bar is over the field in the page: the hero's picture comes after it in no stacking context above it.
-    expect(rules.find((r) => r.selector === '.home .hero svg#field')?.body ?? '', 'the field has no z-index of its own').not.toMatch(/z-index/);
   });
 
   it('keeps the pill that pauses the motion clear of the buttons on a phone: the hero holds room for it below them', () => {
